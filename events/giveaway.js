@@ -72,34 +72,44 @@ module.exports = (client) => {
   async function checkGiveaways(client) {
     const now = Date.now();
     if (!client.giveaways) return;
-
+  
     const newGiveaways = [];
     for (const giveaway of client.giveaways) {
       if (giveaway.endTime <= now) {
-        const channel = await client.channels.fetch(giveaway.channel);
-        if (!channel) continue;
-
-        const winners = [];
-        while (winners.length < giveaway.winners && giveaway.entries.length > 0) {
-          const winnerId = giveaway.entries.splice(Math.floor(Math.random() * giveaway.entries.length), 1)[0];
-          winners.push(`<@${winnerId}>`);
+        try {
+          const channel = await client.channels.fetch(giveaway.channel);
+          if (!channel) throw new Error('Channel not found');
+  
+          const winners = [];
+          while (winners.length < giveaway.winners && giveaway.entries.length > 0) {
+            const winnerId = giveaway.entries.splice(Math.floor(Math.random() * giveaway.entries.length), 1)[0];
+            winners.push(`<@${winnerId}>`);
+          }
+  
+          await channel.send({
+            embeds: [{
+              title: '🎉 Giveaway Ended! 🎉',
+              description: `Prize: **${giveaway.prize}**\nWinners: ${winners.length > 0 ? winners.join(', ') : 'No valid entries.'}`,
+              color: 0x7289da
+            }]
+          });
+  
+          await deleteGiveaway(giveaway.messageId);
+        } catch (error) {
+          if (error.code === 50001 || error.message === 'Channel not found') {
+            console.log(`Missing access to channel ${giveaway.channel}. Deleting giveaway.`);
+            await deleteGiveaway(giveaway.messageId);
+          } else {
+            console.error('Unexpected error while processing giveaway:', error);
+          }
         }
-
-        await channel.send({
-          embeds: [{
-            title: '🎉 Giveaway Ended! 🎉',
-            description: `Prize: **${giveaway.prize}**\nWinners: ${winners.length > 0 ? winners.join(', ') : 'No valid entries.'}`,
-            color: 0x7289da
-          }]
-        });
-
-        await deleteGiveaway(giveaway.messageId); 
       } else {
         newGiveaways.push(giveaway);
       }
     }
     client.giveaways = newGiveaways;
   }
+  
 
   function createGiveawayButtons(giveaway) {
     const enterButton = new ButtonBuilder()
