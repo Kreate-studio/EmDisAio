@@ -170,97 +170,114 @@ module.exports = (client) => {
 
         client.on('interactionCreate', async (interaction) => {
             if (!interaction.isButton()) return;
-
-
+        
             const parts = interaction.customId.split('_');
             const userId = parts.pop();        
             const action = parts.join('_');   
-
-           
+        
             if (interaction.user.id !== userId) {
                 return;
             }
-
+        
             const player = client.riffy.players.get(interaction.guildId);
-            if (!player) return interaction.reply({ content: 'No active player!', ephemeral: true });
-
-            switch (action) {
-                case 'volume_up':
-                    player.setVolume(Math.min(player.volume + 10, 100));
-                    return interaction.reply({ content: 'Volume increased!', ephemeral: true });
-
-                case 'volume_down':
-                    player.setVolume(Math.max(player.volume - 10, 0));
-                    return interaction.reply({ content: 'Volume decreased!', ephemeral: true });
-
-                case 'pause':
-                    player.pause(true);
-                    return interaction.reply({ content: 'Player paused.', ephemeral: true });
-
-                case 'resume':
-                    player.pause(false);
-                    return interaction.reply({ content: 'Player resumed.', ephemeral: true });
-
-                case 'skip':
-                    player.stop();
-                    return interaction.reply({ content: 'Skipped to the next track.', ephemeral: true });
-
-                case 'stop': {
-                    const channel = client.channels.cache.get(player.textChannel);
-                    if (player.currentMessageId) {
-                        try {
-                            const finalMessage = await channel.messages.fetch(player.currentMessageId);
-                            if (finalMessage) await finalMessage.delete();
-                        } catch (deleteErr) {
-                           
+            if (!player) return;
+        
+            // Defer the reply first
+            await interaction.deferReply({ flags : 64 });
+        
+            try {
+                switch (action) {
+                    case 'volume_up':
+                        player.setVolume(Math.min(player.volume + 10, 100));
+                        await interaction.editReply('🔊 Volume increased!');
+                        break;
+        
+                    case 'volume_down':
+                        player.setVolume(Math.max(player.volume - 10, 0));
+                        await interaction.editReply('🔉 Volume decreased!');
+                        break;
+        
+                    case 'pause':
+                        player.pause(true);
+                        await interaction.editReply('⏸️ Player paused.');
+                        break;
+        
+                    case 'resume':
+                        player.pause(false);
+                        await interaction.editReply('▶️ Player resumed.');
+                        break;
+        
+                    case 'skip':
+                        player.stop();
+                        await interaction.editReply('⏭️ Skipped to the next track.');
+                        break;
+        
+                    case 'stop': {
+                        const channel = client.channels.cache.get(player.textChannel);
+                        if (player.currentMessageId) {
                             try {
                                 const finalMessage = await channel.messages.fetch(player.currentMessageId);
-                                if (finalMessage) {
-                                    const disabledComponents = finalMessage.components.map(row =>
-                                        new ActionRowBuilder().addComponents(
-                                            row.components.map(component =>
-                                                ButtonBuilder.from(component).setDisabled(true)
+                                if (finalMessage) await finalMessage.delete();
+                            } catch (deleteErr) {
+                                try {
+                                    const finalMessage = await channel.messages.fetch(player.currentMessageId);
+                                    if (finalMessage) {
+                                        const disabledComponents = finalMessage.components.map(row =>
+                                            new ActionRowBuilder().addComponents(
+                                                row.components.map(component =>
+                                                    ButtonBuilder.from(component).setDisabled(true)
+                                                )
                                             )
-                                        )
-                                    );
-                                    await finalMessage.edit({ components: disabledComponents });
+                                        );
+                                        await finalMessage.edit({ components: disabledComponents });
+                                    }
+                                } catch (editErr) {
+                                    console.error("Failed to disable buttons:", editErr);
                                 }
-                            } catch (editErr) {
-                                console.error("Failed to disable buttons:", editErr);
                             }
                         }
+                        player.destroy();
+                        await interaction.editReply('⏹️ Stopped the music and disconnected.');
+                        break;
                     }
-                    player.destroy();
-                    return interaction.reply({ content: 'Stopped the music and disconnected.', ephemeral: true });
+        
+                    case 'clear_queue':
+                        player.queue.clear();
+                        await interaction.editReply('🗑️ Queue cleared.');
+                        break;
+        
+                    case 'shuffle':
+                        player.queue.shuffle();
+                        await interaction.editReply('🔀 Queue shuffled!');
+                        break;
+        
+                    case 'loop':
+                        const loopMode = player.loop === 'none' ? 'track' : player.loop === 'track' ? 'queue' : 'none';
+                        player.setLoop(loopMode);
+                        await interaction.editReply(`🔁 Loop mode set to: **${loopMode}**.`);
+                        break;
+        
+                    case 'show_queue':
+                        if (!player.queue || player.queue.length === 0) {
+                            await interaction.editReply('❌ The queue is empty.');
+                        } else {
+                            const queueStr = player.queue
+                                .map((track, i) => `${i + 1}. **${track.info.title}**`)
+                                .join('\n');
+                            await interaction.editReply(`🎶 **Queue:**\n${queueStr}`);
+                        }
+                        break;
+        
+                    default:
+                        await interaction.editReply('❌ Unknown action.');
+                        break;
                 }
-
-                case 'clear_queue':
-                    player.queue.clear();
-                    return interaction.reply({ content: 'Queue cleared.', ephemeral: true });
-
-                case 'shuffle':
-                    player.queue.shuffle();
-                    return interaction.reply({ content: 'Queue shuffled!', ephemeral: true });
-
-                case 'loop':
-
-                    const loopMode = player.loop === 'none' ? 'track' : player.loop === 'track' ? 'queue' : 'none';
-                    player.setLoop(loopMode);
-                    return interaction.reply({ content: `Loop mode set to: **${loopMode}**.`, ephemeral: true });
-                case 'show_queue':
-                    if (!player.queue || player.queue.length === 0) {
-                        return interaction.reply({ content: '❌ The queue is empty.', ephemeral: true });
-                    }
-
-                    const queueStr = player.queue
-                        .map((track, i) => `${i + 1}. **${track.info.title}**`)
-                        .join('\n');
-                    return interaction.reply({ content: `🎶 **Queue:**\n${queueStr}`, ephemeral: true });
-
-                default:
-                    return;
+            } catch (error) {
+                //console.error('Error handling button interaction:', error);
+                await interaction.editReply('❌ Something went wrong.');
             }
         });
+        
 
 
         client.on('raw', d => client.riffy.updateVoiceState(d));
