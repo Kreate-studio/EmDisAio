@@ -21,7 +21,7 @@ Test Passed    : ✓
 
 
 
-const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField, PermissionFlagsBits } = require('discord.js');
 const cmdIcons = require('../../UI/icons/commandicons');
 module.exports = {
     data: new SlashCommandBuilder()
