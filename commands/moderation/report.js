@@ -20,7 +20,7 @@ Test Passed    : ✓
 */
 
 
-const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField, PermissionFlagsBits } = require('discord.js');
 const { addReport, getReports, clearReports, removeReport } = require('../../models/reports');
 const cmdIcons = require('../../UI/icons/commandicons');
 module.exports = {
