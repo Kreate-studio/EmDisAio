@@ -2,7 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const lang = require('../../events/loadLanguage');
 
 module.exports = {
-    name: 'durgapooja',
+    name: 'durgapuja',
     description: lang.durgaPoojaDescription,
     execute(message) {
         let today = new Date();
