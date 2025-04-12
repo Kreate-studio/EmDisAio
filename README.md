@@ -48,6 +48,18 @@
 
 1. Open the `config.json` and add your mongodb url.
 
+### ENV SETUP
+
+TOKEN=
+FACEBOOK_ACCESS_TOKEN=
+FORTNITE_API_KEY=
+YOUTUBE_API_KEY=
+TWITCH_CLIENT_ID=
+TWITCH_ACCESS_TOKEN=
+INSTAGRAM_ACCESS_TOKEN=
+MONGODB_URI=
+
+
 ### Step 2: Set Up Hosting Service
 
 1. Go to your preferred hosting service. For this guide, we use [Render](https://render.com/).
