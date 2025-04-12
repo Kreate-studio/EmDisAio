@@ -44,7 +44,7 @@
 
 ## How to Install
 
-### Step 1: Update `config.json`
+### Step 1: Update `config.json` [ USE ENV FILES ]
 
 1. Open the `config.json` and add your mongodb url.
 
