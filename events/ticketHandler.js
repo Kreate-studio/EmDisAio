@@ -63,7 +63,7 @@ module.exports = (client) => {
         setTimeout(() => setupTicketChannels(client), 5000);
         
        
-        setInterval(() => syncTicketChannels(client), 30 * 60 * 1000); 
+        //setInterval(() => syncTicketChannels(client), 30 * 60 * 1000); 
         
        
         setInterval(() => cleanupStaleTickets(client), 15 * 60 * 1000); 
