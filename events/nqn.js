@@ -136,13 +136,13 @@ module.exports = async (client) => {
                             return message.reply(`Successfully added emoji ${newEmoji} with name \`:${uniqueEmojiName}:\``);
                         } catch (error) {
                             console.error('Error adding emoji:', error);
-                            return message.reply(`Failed to add the emoji: ${error.message}`);
+                            //return message.reply(`Failed to add the emoji: ${error.message}`);
                         }
                     } else {
-                        return message.reply(`Could not find an emoji with the name \`:${emojiName}:\` in any server the bot has access to.`);
+                        //return message.reply(`Could not find an emoji with the name \`:${emojiName}:\` in any server the bot has access to.`);
                     }
                 } else {
-                    return message.reply('No valid emoji found in your message. Use `add <emoji>` or `add :emojiname:`.');
+                   // return message.reply('No valid emoji found in your message. Use `add <emoji>` or `add :emojiname:`.');
                 }
             }
         }
