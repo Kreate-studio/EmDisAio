@@ -76,7 +76,7 @@ module.exports = async (client) => {
         }
 
         // Handle "add" command
-        if (message.content.toLowerCase().startsWith('add ')) {
+        if (message.content.toLowerCase().startsWith('nqnadd ')) {
             if (!message.member.permissions.has('ManageEmojisAndStickers')) {
                 return message.reply('You need the "Manage Emojis and Stickers" permission to add emojis.');
             }
@@ -148,7 +148,7 @@ module.exports = async (client) => {
         }
         
         // Handle "react" command
-        if (message.content.toLowerCase().startsWith('react ')) {
+        if (message.content.toLowerCase().startsWith('nqnreact ')) {
             const emojiRegex = /:(\w+):/g;
             const matches = [...message.content.matchAll(emojiRegex)];
             
