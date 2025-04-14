@@ -21,7 +21,6 @@ Test Passed    : ✓
 
 
 
-
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const anime = require('anime-actions');
 const cmdIcons = require('../../UI/icons/commandicons');
@@ -221,56 +220,58 @@ module.exports = {
 
 	async execute(interaction) {
         if (interaction.isCommand && interaction.isCommand()) {
-		const subcommand = interaction.options.getSubcommand();
-		const action = actions[subcommand];
-		const sender = interaction.user;
-		let target = null;
+       
+            await interaction.deferReply();
+            
+            const subcommand = interaction.options.getSubcommand();
+            const action = actions[subcommand];
+            const sender = interaction.user;
+            let target = null;
 
+            if (action.requiresTarget) {
+                target = interaction.options.getUser('user');
+            }
 
-		if (action.requiresTarget) {
-			target = interaction.options.getUser('user');
-		}
+            try {
+                const gif = await action.func();
 
-		try {
+                let description;
+                if (target) {
+                    description = `${sender} ${subcommand}s ${target}!`;
+                } else {
+                    description = `${sender} ${subcommand}es!`;
+                }
 
-			const gif = await action.func();
+                const embed = new EmbedBuilder()
+                    .setColor('#ffcc00')
+                    .setDescription(description)
+                    .setImage(gif)
+                    .setTimestamp();
 
-
-			let description;
-			if (target) {
-				description = `${sender} ${subcommand}s ${target}!`;
-			} else {
-				description = `${sender} ${subcommand}es!`;
-			}
-
-			const embed = new EmbedBuilder()
-				.setColor('#ffcc00')
-				.setDescription(description)
-				.setImage(gif)
-				.setTimestamp();
-
-			await interaction.reply({ embeds: [embed] });
-		} catch (error) {
-			console.error(error);
-			await interaction.reply({
-				content: 'Something went wrong while performing the action.',
-				flags: 64
-			});
-		}
-    } else {
-        const embed = new EmbedBuilder()
-            .setColor('#3498db')
-            .setAuthor({ 
-                name: "Alert!", 
-                iconURL: cmdIcons.dotIcon,
-                url: "https://discord.gg/xQF9f9yUEM"
-            })
-            .setDescription('- This command can only be used through slash command!\n- Please use `/anime`')
-            .setTimestamp();
-      
-        await interaction.reply({ embeds: [embed] });
-      } 
-	}
+               
+                await interaction.editReply({ embeds: [embed] });
+            } catch (error) {
+                console.error(error);
+              
+                await interaction.editReply({
+                    content: 'Something went wrong while performing the action.',
+                    ephemeral: true
+                });
+            }
+        } else {
+            const embed = new EmbedBuilder()
+                .setColor('#3498db')
+                .setAuthor({ 
+                    name: "Alert!", 
+                    iconURL: cmdIcons.dotIcon,
+                    url: "https://discord.gg/xQF9f9yUEM"
+                })
+                .setDescription('- This command can only be used through slash command!\n- Please use `/anime`')
+                .setTimestamp();
+          
+            await interaction.reply({ embeds: [embed] });
+        } 
+    }
 };
 
 /*
