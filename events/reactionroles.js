@@ -1,4 +1,4 @@
-const { Client, ActionRowBuilder, ButtonBuilder, EmbedBuilder, StringSelectMenuBuilder,  ButtonStyle } = require('discord.js');
+const { Client, ActionRowBuilder, ButtonBuilder, EmbedBuilder, StringSelectMenuBuilder, ButtonStyle } = require('discord.js');
 const { reactionRolesCollection } = require('../mongodb');
 const { DiscordAPIError } = require('discord.js');
 
@@ -11,15 +11,12 @@ module.exports = (client) => {
         const { customId, guild, user } = interaction;
         
         try {
-         
             const member = await guild.members.fetch(user.id);
             
-         
             if (interaction.isButton()) {
                 
                 if (customId.startsWith('reaction_role_')) {
                     const roleId = customId.split('reaction_role_')[1];
-                    
                     
                     const role = guild.roles.cache.get(roleId);
                     if (!role) {
@@ -29,14 +26,12 @@ module.exports = (client) => {
                         });
                     }
                     
-                  
                     if (!guild.members.me.permissions.has('ManageRoles')) {
                         return interaction.reply({ 
                             content: '❌ I don\'t have permission to manage roles.', 
                             ephemeral: true 
                         });
                     }
-                    
                     
                     if (role.position >= guild.members.me.roles.highest.position) {
                         return interaction.reply({ 
@@ -45,7 +40,6 @@ module.exports = (client) => {
                         });
                     }
                     
-                 
                     try {
                         if (member.roles.cache.has(role.id)) {
                             await member.roles.remove(role);
@@ -70,12 +64,10 @@ module.exports = (client) => {
                 }
             }
             
-           
             if (interaction.isStringSelectMenu()) {
                 if (customId.startsWith('reaction_menu_')) {
                     const selectedValue = interaction.values[0];
                     
-                   
                     const reactionRole = await reactionRolesCollection.findOne({ 
                         roleId: selectedValue,
                         menuId: customId,
@@ -89,7 +81,6 @@ module.exports = (client) => {
                         });
                     }
                     
-                   
                     const role = guild.roles.cache.get(selectedValue);
                     if (!role) {
                         return interaction.reply({ 
@@ -98,14 +89,12 @@ module.exports = (client) => {
                         });
                     }
                     
-                   
                     if (!guild.members.me.permissions.has('ManageRoles')) {
                         return interaction.reply({ 
                             content: '❌ I don\'t have permission to manage roles.', 
                             ephemeral: true 
                         });
                     }
-                    
                     
                     if (role.position >= guild.members.me.roles.highest.position) {
                         return interaction.reply({ 
@@ -114,7 +103,6 @@ module.exports = (client) => {
                         });
                     }
                     
-                 
                     try {
                         if (member.roles.cache.has(role.id)) {
                             await member.roles.remove(role);
@@ -157,15 +145,14 @@ module.exports = (client) => {
         }
     });
 
-    // On ready event to set up existing reaction roles
-    client.once('ready', async () => {
+  
+    const rebuildReactionRoles = async () => {
         console.log('Setting up reaction role buttons and menus...');
         
         try {
-          
             const reactionRoles = await reactionRolesCollection.find({}).toArray();
             
-            
+        
             const groupedByMessage = {};
             for (const rr of reactionRoles) {
                 if (!groupedByMessage[rr.messageId]) {
@@ -174,20 +161,18 @@ module.exports = (client) => {
                 groupedByMessage[rr.messageId].push(rr);
             }
             
-         
+            
             for (const messageId in groupedByMessage) {
                 const entries = groupedByMessage[messageId];
                 const channelId = entries[0].channelId;
                 
                 try {
-                   
                     const channel = client.channels.cache.get(channelId);
                     if (!channel) {
                         console.log(`Skipping reaction roles for non-existing channel: ${channelId}`);
                         continue;
                     }
                     
-                   
                     let message;
                     try {
                         message = await channel.messages.fetch(messageId);
@@ -197,15 +182,12 @@ module.exports = (client) => {
                         continue;
                     }
                     
-                    
                     const menuEntries = entries.filter(e => e.type === 'menu');
                     const buttonEntries = entries.filter(e => e.type === 'button');
                     const menuContainer = entries.find(e => e.type === 'menu_container');
                     
                     if (menuEntries.length > 0 || menuContainer) {
-                       
                         if (menuEntries.length > 0) {
-                          
                             const options = menuEntries.map(role => {
                                 const option = {
                                     label: role.label || role.roleName,
@@ -224,7 +206,6 @@ module.exports = (client) => {
                                 return option;
                             });
                             
-                           
                             const menuId = menuEntries[0].menuId;
                             const placeholder = menuContainer?.placeholder || 'Select a role';
                             
@@ -237,33 +218,34 @@ module.exports = (client) => {
                             
                             const row = new ActionRowBuilder().addComponents(selectMenu);
                             
-                           
                             await message.edit({ components: [row] });
                         }
                     } else if (buttonEntries.length > 0) {
-
-                        const rows = [];
-                        let currentRow = [];
                     
+                        const rows = [];
+                        let currentRow = new ActionRowBuilder();
+                        let buttonsInCurrentRow = 0;
+                        
                         for (const entry of buttonEntries) {
-                          
+                         
                             let style;
                             if (typeof entry.style === 'string') {
+                               
                                 const styleKey = entry.style.charAt(0).toUpperCase() + entry.style.slice(1).toLowerCase();
                                 style = ButtonStyle[styleKey] ?? ButtonStyle.Secondary;
                             } else if (typeof entry.style === 'number') {
                                 style = entry.style;
                             } else {
-                                style = ButtonStyle.Secondary; 
+                                style = ButtonStyle.Secondary;
                             }
-                    
-                          
+                            
+                        
                             const button = new ButtonBuilder()
                                 .setCustomId(entry.customId)
                                 .setLabel(entry.label)
                                 .setStyle(style);
-                    
-                           
+                            
+                        
                             if (entry.emoji) {
                                 if (entry.emoji.unicode) {
                                     button.setEmoji(entry.emoji.name);
@@ -271,22 +253,28 @@ module.exports = (client) => {
                                     button.setEmoji(entry.emoji.id);
                                 }
                             }
-                    
-                           
-                            if (currentRow.length >= 5) {
-                                rows.push(new ActionRowBuilder().addComponents(currentRow));
-                                currentRow = [button];
-                            } else {
-                                currentRow.push(button);
+                            
+                       
+                            if (buttonsInCurrentRow >= 5) {
+                                rows.push(currentRow);
+                                currentRow = new ActionRowBuilder();
+                                buttonsInCurrentRow = 0;
                             }
+                            
+                         
+                            currentRow.addComponents(button);
+                            buttonsInCurrentRow++;
                         }
-                    
                         
-                        if (currentRow.length > 0) {
-                            rows.push(new ActionRowBuilder().addComponents(currentRow));
+                     
+                        if (buttonsInCurrentRow > 0) {
+                            rows.push(currentRow);
                         }
-                    
                         
+                        // Debug log
+                        //console.log(`Rebuilding reaction role message ${messageId} with ${buttonEntries.length} buttons across ${rows.length} rows`);
+                        
+                        // Update the message with correctly constructed rows
                         await message.edit({ components: rows });
                     }
                 } catch (err) {
@@ -294,13 +282,21 @@ module.exports = (client) => {
                 }
             }
             
-            //console.log('Reaction role setup complete!');
+            console.log('Reaction role setup complete!');
         } catch (err) {
-            //console.error('Error setting up reaction roles:', err);
+            console.error('Error setting up reaction roles:', err);
         }
+    };
+
+    // Call once on startup
+    client.once('ready', async () => {
+        await rebuildReactionRoles();
+        
+
+        setInterval(rebuildReactionRoles, 3 * 60 * 60 * 1000);
     });
     
-   
+    // Cleanup handlers
     client.on('guildDelete', async (guild) => {
         try {
             await reactionRolesCollection.deleteMany({ serverId: guild.id });
@@ -310,7 +306,6 @@ module.exports = (client) => {
         }
     });
     
-
     client.on('channelDelete', async (channel) => {
         try {
             await reactionRolesCollection.deleteMany({ channelId: channel.id });
@@ -319,7 +314,6 @@ module.exports = (client) => {
             //console.error(`Error cleaning up reaction roles for channel ${channel.id}:`, err);
         }
     });
-    
     
     client.on('messageDelete', async (message) => {
         try {
