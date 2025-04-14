@@ -1,4 +1,4 @@
-const { Client, ChannelType, PermissionsBitField, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, ChannelType, PermissionsBitField, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { VoiceChannelModel, TemporaryChannelModel, CentralizedControlModel } = require('../models/autoVoice/schema');
 const setupBanners = require('../UI/banners/SetupBanners');
 let config = {};
@@ -21,32 +21,34 @@ async function loadConfig() {
   }
 }
 
-// Load config initially and then every 5 seconds
-setInterval(loadConfig, 5000);
+function setupIntervals(client) {
 
-// Cleanup temporary channels after 6 hours
-setInterval(async () => {
-  try {
-    const now = Date.now();
-    const outdatedChannels = await TemporaryChannelModel.find({
-      isTemporary: true,
-      createdAt: { $lt: new Date(now - 6 * 60 * 60 * 1000) }
-    });
+  setInterval(loadConfig, 5000);
 
-    for (const channel of outdatedChannels) {
-      const guild = client.guilds.cache.get(channel.guildId);
-      if (!guild) continue;
+  
+  setInterval(async () => {
+    try {
+      const now = Date.now();
+      const outdatedChannels = await TemporaryChannelModel.find({
+        isTemporary: true,
+        createdAt: { $lt: new Date(now - 6 * 60 * 60 * 1000) }
+      });
 
-      const channelObj = guild.channels.cache.get(channel.channelId);
-      if (channelObj) {
-        await channelObj.delete();
+      for (const channel of outdatedChannels) {
+        const guild = client.guilds.cache.get(channel.guildId);
+        if (!guild) continue;
+
+        const channelObj = guild.channels.cache.get(channel.channelId);
+        if (channelObj) {
+          await channelObj.delete();
+        }
+        await TemporaryChannelModel.deleteOne({ channelId: channel.channelId });
       }
-      await TemporaryChannelModel.deleteOne({ channelId: channel.channelId });
+    } catch (error) {
+      console.error('Error during cleanup:', error);
     }
-  } catch (error) {
-    console.error('Error during cleanup:', error);
-  }
-}, 5000);
+  }, 5000);
+}
 
 const deleteChannelAfterTimeout = (client, channelId, timeout) => {
   setTimeout(async () => {
@@ -304,7 +306,7 @@ const handleButtonInteraction = async (interaction) => {
   const currentVoiceChannel = member?.voice.channel;
 
   if (!currentVoiceChannel) {
-    //return interaction.reply({ content: 'You must be in a voice channel to perform this action.', ephemeral: true });
+    return interaction.reply({ content: 'You must be in a voice channel to perform this action.', ephemeral: true });
   }
 
   const channelId = currentVoiceChannel.id;
@@ -545,7 +547,197 @@ const handleSelectMenu = async (interaction) => {
   }
 };
 
+const handleAdditionalInteractions = async (interaction) => {
+  // Handle bitrate change
+  if (interaction.customId.startsWith('change_bitrate_')) {
+    const channelId = interaction.customId.replace('change_bitrate_', '');
+    const channel = interaction.guild.channels.cache.get(channelId);
+    
+    if (!channel) {
+      return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+    }
+    
+    const bitrateOptions = [
+      { label: '8 kbps', value: '8000' },
+      { label: '16 kbps', value: '16000' },
+      { label: '32 kbps', value: '32000' },
+      { label: '64 kbps', value: '64000' },
+      { label: '96 kbps', value: '96000' },
+      { label: '128 kbps', value: '128000' }
+    ];
+    
+    const row = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`set_bitrate_${channelId}`)
+        .setPlaceholder('Select bitrate')
+        .addOptions(bitrateOptions)
+    );
+    
+    return interaction.reply({
+      content: 'Select a bitrate for your voice channel:',
+      components: [row],
+      ephemeral: true
+    });
+  }
+  
+  // Handle bitrate selection
+  if (interaction.customId.startsWith('set_bitrate_')) {
+    const channelId = interaction.customId.replace('set_bitrate_', '');
+    const channel = interaction.guild.channels.cache.get(channelId);
+    const bitrate = parseInt(interaction.values[0]);
+    
+    if (!channel) {
+      return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+    }
+    
+    await channel.setBitrate(bitrate);
+    return interaction.reply({ 
+      content: `Voice channel bitrate set to ${bitrate / 1000} kbps.`, 
+      ephemeral: true 
+    });
+  }
+  
+  // Handle ownership transfer
+  if (interaction.customId.startsWith('transfer_ownership_')) {
+    const channelId = interaction.customId.replace('transfer_ownership_', '');
+    const channel = interaction.guild.channels.cache.get(channelId);
+    
+    if (!channel) {
+      return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+    }
+    
+    if (channel.members.size <= 1) {
+      return interaction.reply({ content: 'There are no other members to transfer ownership to.', ephemeral: true });
+    }
+    
+    const memberOptions = channel.members
+      .filter(m => m.id !== interaction.user.id)
+      .map(m => ({
+        label: m.user.username,
+        value: m.id
+      }));
+    
+    const row = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`transfer_to_${channelId}`)
+        .setPlaceholder('Select new owner')
+        .addOptions(memberOptions)
+    );
+    
+    return interaction.reply({
+      content: 'Select a member to transfer ownership to:',
+      components: [row],
+      ephemeral: true
+    });
+  }
+  
+  // Handle ownership transfer selection
+  if (interaction.customId.startsWith('transfer_to_')) {
+    const channelId = interaction.customId.replace('transfer_to_', '');
+    const newOwnerId = interaction.values[0];
+    
+    const channel = interaction.guild.channels.cache.get(channelId);
+    if (!channel) {
+      return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+    }
+    
+    const newOwner = channel.members.get(newOwnerId);
+    if (!newOwner) {
+      return interaction.reply({ content: 'Selected member is no longer in the channel.', ephemeral: true });
+    }
+    
+    await channel.permissionOverwrites.edit(
+      interaction.user.id,
+      { ManageChannels: false }
+    );
+    
+    await channel.permissionOverwrites.edit(
+      newOwnerId,
+      { ManageChannels: true, Connect: true, Speak: true }
+    );
+    
+    await TemporaryChannelModel.updateOne(
+      { channelId },
+      { $set: { userId: newOwnerId } }
+    );
+    
+    return interaction.reply({
+      content: `Channel ownership transferred to ${newOwner.user.username}.`,
+      ephemeral: true
+    });
+  }
+  
+  // Handle region change
+  if (interaction.customId.startsWith('change_region_')) {
+    const channelId = interaction.customId.replace('change_region_', '');
+    const channel = interaction.guild.channels.cache.get(channelId);
+    
+    if (!channel) {
+      return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+    }
+    
+    const regionOptions = [
+      { label: 'Automatic', value: 'auto' },
+      { label: 'Brazil', value: 'brazil' },
+      { label: 'Europe', value: 'europe' },
+      { label: 'Hong Kong', value: 'hongkong' },
+      { label: 'India', value: 'india' },
+      { label: 'Japan', value: 'japan' },
+      { label: 'Russia', value: 'russia' },
+      { label: 'Singapore', value: 'singapore' },
+      { label: 'South Africa', value: 'southafrica' },
+      { label: 'Sydney', value: 'sydney' },
+      { label: 'US Central', value: 'us-central' },
+      { label: 'US East', value: 'us-east' },
+      { label: 'US South', value: 'us-south' },
+      { label: 'US West', value: 'us-west' }
+    ];
+    
+    const row = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`set_region_${channelId}`)
+        .setPlaceholder('Select region')
+        .addOptions(regionOptions)
+    );
+    
+    return interaction.reply({
+      content: 'Select a region for your voice channel:',
+      components: [row],
+      ephemeral: true
+    });
+  }
+  
+  // Handle region selection
+  if (interaction.customId.startsWith('set_region_')) {
+    const channelId = interaction.customId.replace('set_region_', '');
+    const channel = interaction.guild.channels.cache.get(channelId);
+    const region = interaction.values[0];
+    
+    if (!channel) {
+      return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+    }
+    
+    try {
+      await channel.setRTCRegion(region === 'auto' ? null : region);
+      return interaction.reply({ 
+        content: `Voice channel region set to ${region === 'auto' ? 'Automatic' : region}.`, 
+        ephemeral: true 
+      });
+    } catch (error) {
+      console.error('Error setting region:', error);
+      return interaction.reply({ 
+        content: 'An error occurred while setting the region.', 
+        ephemeral: true 
+      });
+    }
+  }
+};
+
+
 module.exports = (client) => {
+
+  setupIntervals(client);
+  
   client.on('ready', async () => {
     try {
       await loadConfig();
@@ -567,200 +759,14 @@ module.exports = (client) => {
       await handleSelectMenu(interaction);
     }
   });
-  client.on('interactionCreate', async (interaction) => {
-    if (interaction.isButton() || interaction.isStringSelectMenu()) {
-      await handleAdditionalInteractions(interaction);
-    }
-  });
-};
-const handleAdditionalInteractions = async (interaction) => {
-    // Handle bitrate change
-    if (interaction.customId.startsWith('change_bitrate_')) {
-      const channelId = interaction.customId.replace('change_bitrate_', '');
-      const channel = interaction.guild.channels.cache.get(channelId);
-      
-      if (!channel) {
-        //return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      }
-      
-    
-      const bitrateOptions = [
-        { label: '8 kbps', value: '8000' },
-        { label: '16 kbps', value: '16000' },
-        { label: '32 kbps', value: '32000' },
-        { label: '64 kbps', value: '64000' },
-        { label: '96 kbps', value: '96000' },
-        { label: '128 kbps', value: '128000' }
-      ];
-      
-      const row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(`set_bitrate_${channelId}`)
-          .setPlaceholder('Select bitrate')
-          .addOptions(bitrateOptions)
-      );
-      
-      return interaction.reply({
-        content: 'Select a bitrate for your voice channel:',
-        components: [row],
-        ephemeral: true
-      });
-    }
-    
-    // Handle bitrate selection
-    if (interaction.customId.startsWith('set_bitrate_')) {
-      const channelId = interaction.customId.replace('set_bitrate_', '');
-      const channel = interaction.guild.channels.cache.get(channelId);
-      const bitrate = parseInt(interaction.values[0]);
-      
-      if (!channel) {
-        return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      }
-      
-      await channel.setBitrate(bitrate);
-      return interaction.reply({ 
-        content: `Voice channel bitrate set to ${bitrate / 1000} kbps.`, 
-        ephemeral: true 
-      });
-    }
-    
-    // Handle ownership transfer
-    if (interaction.customId.startsWith('transfer_ownership_')) {
-      const channelId = interaction.customId.replace('transfer_ownership_', '');
-      const channel = interaction.guild.channels.cache.get(channelId);
-      
-      if (!channel) {
-        return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      }
-      
-      if (channel.members.size <= 1) {
-        return interaction.reply({ content: 'There are no other members to transfer ownership to.', ephemeral: true });
-      }
-      
-      const memberOptions = channel.members
-        .filter(m => m.id !== interaction.user.id)
-        .map(m => ({
-          label: m.user.username,
-          value: m.id
-        }));
-      
-      const row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(`transfer_to_${channelId}`)
-          .setPlaceholder('Select new owner')
-          .addOptions(memberOptions)
-      );
-      
-      return interaction.reply({
-        content: 'Select a member to transfer ownership to:',
-        components: [row],
-        ephemeral: true
-      });
-    }
-    
-    // Handle ownership transfer selection
-    if (interaction.customId.startsWith('transfer_to_')) {
-      const channelId = interaction.customId.replace('transfer_to_', '');
-      const newOwnerId = interaction.values[0];
-      
-      const channel = interaction.guild.channels.cache.get(channelId);
-      if (!channel) {
-        return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      }
-      
-      const newOwner = channel.members.get(newOwnerId);
-      if (!newOwner) {
-        return interaction.reply({ content: 'Selected member is no longer in the channel.', ephemeral: true });
-      }
-      
   
-      await channel.permissionOverwrites.edit(
-        interaction.user.id,
-        { ManageChannels: false }
-      );
-      
 
-      await channel.permissionOverwrites.edit(
-        newOwnerId,
-        { ManageChannels: true, Connect: true, Speak: true }
-      );
-      
-     
-      await TemporaryChannelModel.updateOne(
-        { channelId },
-        { $set: { userId: newOwnerId } }
-      );
-      
-      return interaction.reply({
-        content: `Channel ownership transferred to ${newOwner.user.username}.`,
-        ephemeral: true
-      });
-    }
-    
-   
-    if (interaction.customId.startsWith('change_region_')) {
-      const channelId = interaction.customId.replace('change_region_', '');
-      const channel = interaction.guild.channels.cache.get(channelId);
-      
-      if (!channel) {
-        return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      }
-      
-      const regionOptions = [
-        { label: 'Automatic', value: 'auto' },
-        { label: 'Brazil', value: 'brazil' },
-        { label: 'Europe', value: 'europe' },
-        { label: 'Hong Kong', value: 'hongkong' },
-        { label: 'India', value: 'india' },
-        { label: 'Japan', value: 'japan' },
-        { label: 'Russia', value: 'russia' },
-        { label: 'Singapore', value: 'singapore' },
-        { label: 'South Africa', value: 'southafrica' },
-        { label: 'Sydney', value: 'sydney' },
-        { label: 'US Central', value: 'us-central' },
-        { label: 'US East', value: 'us-east' },
-        { label: 'US South', value: 'us-south' },
-        { label: 'US West', value: 'us-west' }
-      ];
-      
-      const row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(`set_region_${channelId}`)
-          .setPlaceholder('Select region')
-          .addOptions(regionOptions)
-      );
-      
-      return interaction.reply({
-        content: 'Select a region for your voice channel:',
-        components: [row],
-        ephemeral: true
-      });
-    }
-    
-    // Handle region selection
-    if (interaction.customId.startsWith('set_region_')) {
-      const channelId = interaction.customId.replace('set_region_', '');
-      const channel = interaction.guild.channels.cache.get(channelId);
-      const region = interaction.values[0];
-      
-      if (!channel) {
-        return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      }
-      
-      try {
-        await channel.setRTCRegion(region === 'auto' ? null : region);
-        return interaction.reply({ 
-          content: `Voice channel region set to ${region === 'auto' ? 'Automatic' : region}.`, 
-          ephemeral: true 
-        });
-      } catch (error) {
-        console.error('Error setting region:', error);
-        return interaction.reply({ 
-          content: 'An error occurred while setting the region.', 
-          ephemeral: true 
-        });
-      }
-    }
-  };
+client.on('interactionCreate', async (interaction) => {
+  if (interaction.isButton() || interaction.isStringSelectMenu()) {
+    await handleAdditionalInteractions(interaction);
+  }
+});
+};
+
 module.exports.loadConfig = loadConfig;
 module.exports.sendOrUpdateCentralizedEmbed = sendOrUpdateCentralizedEmbed;
