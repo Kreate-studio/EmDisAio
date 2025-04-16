@@ -45,11 +45,11 @@ module.exports = {
         const sub = interaction.options.getSubcommand();
         let config = await VerificationConfig.findOne({ guildId });
         if (sub === 'enable') {
-            // Reuse existing config or init new
+        
             if (config?.verificationEnabled) {
                 const existingChannel = guild.channels.cache.get(config.verificationChannelId);
         
-                // If channel exists, stop setup
+                
                 if (existingChannel) {
                     return interaction.editReply({ content: '⚠️ Verification system is already enabled for this server.' });
                 }
@@ -69,11 +69,18 @@ module.exports = {
                 guild.roles.cache.get(config?.verifiedRoleId) ||
                 await guild.roles.create({ name: 'Verified', color: '#00ff00', permissions: [] });
         
-            await Promise.all(
-                guild.channels.cache.map(ch =>
-                    ch.permissionOverwrites.edit(unverifiedRole, { ViewChannel: false }).catch(() => {})
-                )
-            );
+           
+            for (const channel of guild.channels.cache.values()) {
+                try {
+                    
+                    if (channel.permissionOverwrites && typeof channel.permissionOverwrites.edit === 'function') {
+                        await channel.permissionOverwrites.edit(unverifiedRole, { ViewChannel: false });
+                    }
+                } catch (error) {
+                    console.error(`Failed to update permissions for channel: ${channel.name}`, error);
+                   
+                }
+            }
         
             const verificationChannel = await guild.channels.create({
                 name: 'verify-here',
@@ -161,5 +168,6 @@ module.exports = {
 
         await interaction.reply({ embeds: [embed] });
     }
+
     }
 };
