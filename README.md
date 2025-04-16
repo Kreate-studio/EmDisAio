@@ -96,7 +96,6 @@ Common Errors: Consult the errors section for troubleshooting.
 
 ### Useful Files
 
-events/ready.js: Bot status configuration.
 
 UI/banners/musicard.js: Change, add, or remove music cards here.
 
