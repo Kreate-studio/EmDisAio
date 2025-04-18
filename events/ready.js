@@ -11,34 +11,47 @@ module.exports = {
         console.log(`${colors.magenta}${colors.bright}🔗  ACTIVITY STATUS${colors.reset}`);
         console.log('─'.repeat(40));
 
-        let i = 0;
-        const INTERVAL = 10000;
+        let defaultIndex = 0;
+        let customIndex = 0;
+        let currentInterval = 10000; 
 
-        async function getDynamicActivity() {
-            const custom = await botStatusCollection.findOne({});
-            if (!custom || !custom.custom) return null;
+        async function getCustomStatus() {
+            const statusDoc = await botStatusCollection.findOne({});
+            if (!statusDoc || !statusDoc.useCustom || !statusDoc.customRotation || statusDoc.customRotation.length === 0) {
+                return null;
+            }
 
+       
+            if (statusDoc.interval) {
+                currentInterval = statusDoc.interval * 1000;
+            }
+
+          
+            const status = statusDoc.customRotation[customIndex];
+            customIndex = (customIndex + 1) % statusDoc.customRotation.length;
+
+    
             const placeholders = {
                 '{members}': client.guilds.cache.reduce((a, g) => a + g.memberCount, 0),
                 '{servers}': client.guilds.cache.size,
                 '{channels}': client.channels.cache.size,
             };
 
-            const resolvedName = Object.entries(placeholders).reduce(
-                (text, [key, val]) => text.replaceAll(key, val),
-                custom.activity
+            const resolvedActivity = Object.entries(placeholders).reduce(
+                (text, [key, val]) => text.replace(new RegExp(key, 'g'), val),
+                status.activity
             );
 
             const activity = {
-                name: resolvedName,
-                type: ActivityType[custom.type],
+                name: resolvedActivity,
+                type: ActivityType[status.type],
             };
 
-            if (custom.type === 'Streaming' && custom.url) {
-                activity.url = custom.url;
+            if (status.type === 'Streaming' && status.url) {
+                activity.url = status.url;
             }
 
-            return { activity, status: custom.status };
+            return { activity, status: status.status };
         }
 
         async function getCurrentSongActivity() {
@@ -56,32 +69,39 @@ module.exports = {
         }
 
         async function updateStatus() {
-            const dynamic = await getDynamicActivity();
-
-            if (dynamic) {
+         
+            const customStatus = await getCustomStatus();
+            
+            if (customStatus) {
                 client.user.setPresence({
-                    activities: [dynamic.activity],
-                    status: dynamic.activity.type === ActivityType.Streaming ? undefined : dynamic.status
+                    activities: [customStatus.activity],
+                    status: customStatus.activity.type === ActivityType.Streaming ? undefined : customStatus.status
                 });
+                //console.log(`${colors.cyan}[STATUS]${colors.reset} Using custom status: ${customStatus.activity.name}`);
                 return;
             }
 
+           
             if (config.status.songStatus) {
                 const songActivity = await getCurrentSongActivity();
                 if (songActivity) {
                     client.user.setActivity(songActivity);
+                    //console.log(`${colors.cyan}[STATUS]${colors.reset} Using song status: ${songActivity.name}`);
                     return;
                 }
             }
 
-            const next = config.status.rotateDefault[i % config.status.rotateDefault.length];
+           
+            const next = config.status.rotateDefault[defaultIndex % config.status.rotateDefault.length];
             client.user.setPresence({
                 activities: [next],
                 status: next.type === ActivityType.Streaming ? undefined : 'online'
             });
-            i++;
+            //console.log(`${colors.cyan}[STATUS]${colors.reset} Using default status: ${next.name}`);
+            defaultIndex++;
         }
 
+        
         client.invites = new Map();
         for (const [guildId, guild] of client.guilds.cache) {
             try {
@@ -102,8 +122,27 @@ module.exports = {
             }
         }
 
+      
         updateStatus();
-        setInterval(updateStatus, INTERVAL);
+        
+      
+        async function checkAndUpdateInterval() {
+            const statusDoc = await botStatusCollection.findOne({});
+            const newInterval = statusDoc?.interval ? statusDoc.interval * 1000 : 10000;
+            
+            if (newInterval !== currentInterval) {
+                //console.log(`${colors.cyan}[STATUS]${colors.reset} Updating interval to ${newInterval / 1000} seconds`);
+                currentInterval = newInterval;
+            }
+            
+          
+            setTimeout(() => {
+                updateStatus().then(() => checkAndUpdateInterval());
+            }, currentInterval);
+        }
+        
+       
+        checkAndUpdateInterval();
 
         console.log('\x1b[31m[ CORE ]\x1b[0m \x1b[32m%s\x1b[0m', 'Bot Activity Cycle Running ✅');
     }
