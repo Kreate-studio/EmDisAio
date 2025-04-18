@@ -1,15 +1,16 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { botStatusCollection } = require('../../mongodb');
 const { ActivityType } = require('discord.js');
 const config = require('../../config');
 const cmdIcons = require('../../UI/icons/commandicons');
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('setup-status')
         .setDescription('View or change the bot\'s presence')
         .addSubcommand(sub =>
-            sub.setName('set')
-                .setDescription('Set bot status and activity')
+            sub.setName('add')
+                .setDescription('Add a custom status to rotation')
                 .addStringOption(opt =>
                     opt.setName('status')
                         .setDescription('Bot status')
@@ -40,7 +41,33 @@ module.exports = {
         )
         .addSubcommand(sub =>
             sub.setName('view')
-                .setDescription('View current bot status and activity')
+                .setDescription('View all custom statuses in rotation')
+        )
+        .addSubcommand(sub =>
+            sub.setName('remove')
+                .setDescription('Remove a custom status from rotation')
+                .addIntegerOption(opt =>
+                    opt.setName('index')
+                        .setDescription('Index of the status to remove (use /setup-status view to see indices)')
+                        .setRequired(true))
+        )
+        .addSubcommand(sub =>
+            sub.setName('interval')
+                .setDescription('Set the interval for status rotation')
+                .addIntegerOption(opt =>
+                    opt.setName('seconds')
+                        .setDescription('Interval in seconds (default: 10)')
+                        .setRequired(true)
+                        .setMinValue(5)
+                        .setMaxValue(300))
+        )
+        .addSubcommand(sub =>
+            sub.setName('toggle')
+                .setDescription('Toggle between default rotation and custom rotation')
+                .addBooleanOption(opt =>
+                    opt.setName('use_custom')
+                        .setDescription('Use custom rotation instead of default')
+                        .setRequired(true))
         )
         .addSubcommand(sub =>
             sub.setName('reset')
@@ -49,83 +76,129 @@ module.exports = {
 
     async execute(interaction) {
         if (interaction.isCommand && interaction.isCommand()) {
-        await interaction.deferReply({ ephemeral: true });
-        const subcommand = interaction.options.getSubcommand();
-        const client = interaction.client;
-        if (interaction.user.id !== config.ownerId) {
-            return interaction.editReply({
-                content: '❌ Only the **bot owner** can use this command.',
-                ephemeral: true
-            });
-        }
-        if (subcommand === 'set') {
-            const status = interaction.options.getString('status');
-            const activityRaw = interaction.options.getString('activity');
-            const type = interaction.options.getString('type');
-            const streamurl = interaction.options.getString('streamurl') || null;
-
-            if (type === 'Streaming' && (!streamurl || !streamurl.startsWith('https://www.twitch.tv/'))) {
-                return interaction.editReply('❌ You must provide a valid Twitch stream URL for streaming activities.');
+            await interaction.deferReply({ ephemeral: true });
+            const subcommand = interaction.options.getSubcommand();
+            const client = interaction.client;
+            
+            if (interaction.user.id !== config.ownerId) {
+                return interaction.editReply({
+                    content: '❌ Only the **bot owner** can use this command.',
+                    ephemeral: true
+                });
             }
+            
+            if (subcommand === 'add') {
+                const status = interaction.options.getString('status');
+                const activityRaw = interaction.options.getString('activity');
+                const type = interaction.options.getString('type');
+                const streamurl = interaction.options.getString('streamurl') || null;
 
-            const placeholders = {
-                '{members}': client.guilds.cache.reduce((a, g) => a + g.memberCount, 0),
-                '{servers}': client.guilds.cache.size,
-                '{channels}': client.channels.cache.size,
-            };
+                if (type === 'Streaming' && (!streamurl || !streamurl.startsWith('https://www.twitch.tv/'))) {
+                    return interaction.editReply('❌ You must provide a valid Twitch stream URL for streaming activities.');
+                }
 
-            const resolvedActivity = Object.entries(placeholders).reduce((text, [placeholder, value]) =>
-                text.replace(new RegExp(placeholder, 'g'), value), activityRaw
-            );
-
-            const activityObj = {
-                name: resolvedActivity,
-                type: ActivityType[type],
-            };
-
-            if (type === 'Streaming') activityObj.url = streamurl;
-
-            await client.user.setPresence({
-                status,
-                activities: [activityObj]
-            });
-
-            await botStatusCollection.updateOne({}, {
-                $set: {
+                // Create status object
+                const statusObj = {
                     status,
                     activity: activityRaw,
-                    resolved: resolvedActivity,
                     type,
                     url: streamurl || null,
-                    custom: true
+                };
+
+                // Get current document or create new one
+                let statusDoc = await botStatusCollection.findOne({}) || { 
+                    useCustom: false, 
+                    customRotation: [],
+                    interval: 10
+                };
+                
+                if (!statusDoc.customRotation) {
+                    statusDoc.customRotation = [];
                 }
-            }, { upsert: true });
+                
+                // Limit to 3 custom rotations
+                if (statusDoc.customRotation.length >= 3) {
+                    return interaction.editReply('❌ You can only have 3 custom statuses in rotation. Remove one first with `/setup-status remove`.');
+                }
+                
+                // Add the new status to the rotation
+                statusDoc.customRotation.push(statusObj);
+                
+                // Save to database
+                await botStatusCollection.updateOne({}, { $set: statusDoc }, { upsert: true });
+                
+                return interaction.editReply(`✅ Added custom status to rotation: **${status}**, activity: **${type} ${activityRaw}**`);
 
-            return interaction.editReply(`✅ Bot status set to **${status}**, activity: **${type} ${resolvedActivity}**`);
+            } else if (subcommand === 'view') {
+                const statusDoc = await botStatusCollection.findOne({});
+                if (!statusDoc || !statusDoc.customRotation || statusDoc.customRotation.length === 0) {
+                    return interaction.editReply('ℹ️ No custom rotation statuses set. Add some with `/setup-status add`.');
+                }
 
-        } else if (subcommand === 'view') {
-            const current = await botStatusCollection.findOne({});
-            if (!current) return interaction.editReply('ℹ️ No custom status set. Bot is using default rotating status.');
+                const rotationList = statusDoc.customRotation.map((status, index) => {
+                    const urlPart = status.url ? ` (URL: ${status.url})` : '';
+                    return `**${index + 1}.** ${status.status} - ${status.type} **${status.activity}**${urlPart}`;
+                }).join('\n');
 
-            const urlPart = current.url ? `\n🔗 **URL:** ${current.url}` : '';
-            return interaction.editReply(`🔎 **Status:** ${current.status}\n🎮 **Activity:** ${current.type} ${current.resolved}${urlPart}`);
+                const activeMode = statusDoc.useCustom ? 'Custom rotation' : 'Default rotation';
+                const intervalMsg = `Interval: **${statusDoc.interval || 10}** seconds`;
 
-        } else if (subcommand === 'reset') {
-            await botStatusCollection.deleteOne({});
-            return interaction.editReply('♻️ Reset to default rotating activities. Will take effect on next cycle.');
+                return interaction.editReply(`📋 **Custom Status Rotation (${statusDoc.customRotation.length}/3)**\n\n${rotationList}\n\n${intervalMsg}\n**Active Mode:** ${activeMode}`);
+
+            } else if (subcommand === 'remove') {
+                const index = interaction.options.getInteger('index') - 1;  // Convert to zero-based
+                
+                const statusDoc = await botStatusCollection.findOne({});
+                if (!statusDoc || !statusDoc.customRotation || !statusDoc.customRotation[index]) {
+                    return interaction.editReply('❌ Invalid index or no custom rotation found.');
+                }
+                
+                const removed = statusDoc.customRotation.splice(index, 1)[0];
+                await botStatusCollection.updateOne({}, { $set: { customRotation: statusDoc.customRotation } });
+                
+                return interaction.editReply(`✅ Removed status: **${removed.status}** - ${removed.type} **${removed.activity}**`);
+
+            } else if (subcommand === 'interval') {
+                const seconds = interaction.options.getInteger('seconds');
+                
+                await botStatusCollection.updateOne({}, { $set: { interval: seconds } }, { upsert: true });
+                
+                return interaction.editReply(`⏱️ Status rotation interval set to **${seconds}** seconds.`);
+
+            } else if (subcommand === 'toggle') {
+                const useCustom = interaction.options.getBoolean('use_custom');
+                
+                // Get current document or create new one
+                let statusDoc = await botStatusCollection.findOne({}) || { 
+                    customRotation: [],
+                    interval: 10
+                };
+                
+                if (useCustom && (!statusDoc.customRotation || statusDoc.customRotation.length === 0)) {
+                    return interaction.editReply('❌ No custom statuses added yet. Add some with `/setup-status add` first.');
+                }
+                
+                await botStatusCollection.updateOne({}, { $set: { useCustom } }, { upsert: true });
+                
+                const mode = useCustom ? 'custom rotation' : 'default rotation';
+                return interaction.editReply(`🔄 Status rotation mode set to **${mode}**.`);
+
+            } else if (subcommand === 'reset') {
+                await botStatusCollection.deleteOne({});
+                return interaction.editReply('♻️ Reset to default rotating activities. Will take effect on next cycle.');
+            }
+        } else {
+            const embed = new EmbedBuilder()
+                .setColor('#3498db')
+                .setAuthor({ 
+                    name: "Alert!", 
+                    iconURL: cmdIcons.dotIcon,
+                    url: "https://discord.gg/xQF9f9yUEM"
+                })
+                .setDescription('- This command can only be used through slash commands!\n- Please use `/setup-status`')
+                .setTimestamp();
+
+            await interaction.reply({ embeds: [embed] });
         }
-    } else {
-        const embed = new EmbedBuilder()
-            .setColor('#3498db')
-            .setAuthor({ 
-                name: "Alert!", 
-                iconURL: cmdIcons.dotIcon,
-                url: "https://discord.gg/xQF9f9yUEM"
-            })
-            .setDescription('- This command can only be used through slash commands!\n- Please use `/setup-status`')
-            .setTimestamp();
-
-        await interaction.reply({ embeds: [embed] });
-    }
     }
 };
