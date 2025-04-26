@@ -11,15 +11,18 @@ module.exports = {
         .setDescription('Displays the command list and bot information'),
 
     async execute(interaction) {
+      
+        await interaction.deferReply();
+        
         if (interaction.isCommand && interaction.isCommand()) {
-            // Constants for styling
+     
             const BOT_ICON = "https://cdn.discordapp.com/emojis/1334648756649590805.png";
-            const EMBED_COLOR = "#5865F2"; // Discord blurple for a more modern look
+            const EMBED_COLOR = "#5865F2"; 
             const FOOTER_TEXT = "All In One | The Discord Operating System • Created by GlaceYT";
             const COMMANDS_DIR = path.join(__dirname, '../../commands');
             const EXCESS_COMMANDS_DIR = path.join(__dirname, '../../excesscommands');
 
-            // Safe category icons using standard Discord emojis
+         
             const CATEGORY_ICONS = {
                 utility: "🛠️",
                 moderation: "🛡️",
@@ -172,26 +175,24 @@ module.exports = {
                         ].join('\n'),
                         commands: commandLines,
                         author: { name: `${category.toUpperCase()} • COMMAND MODULE` },
-                        icon: categoryIcon // Safe icon for dropdown
+                        icon: categoryIcon 
                     });
                 }
 
                 return pages;
             };
 
-            // Generate Command Sets
             const slashCommands = readCommands(COMMANDS_DIR, config.categories);
             const prefixCommands = readCommands(EXCESS_COMMANDS_DIR, config.excessCommands);
 
             const slashPages = createPages(slashCommands, 'slash');
             const prefixPages = createPages(prefixCommands, 'prefix');
 
-            // Interaction Handling Variables
+          
             let currentPage = 0;
             let currentSet = slashPages;
             let isPrefix = false;
 
-            // Function to create the embed for the current page
             const createEmbed = () => {
                 const page = currentSet[currentPage];
                 const embed = new EmbedBuilder()
@@ -207,7 +208,7 @@ module.exports = {
                     .setFooter({ text: `${FOOTER_TEXT} • Page ${currentPage + 1}/${currentSet.length}` })
                     .setTimestamp();
 
-                // Handle command list fields with improved formatting
+        
                 if (page.commands && page.commands.length > 0) {
                     const joinedCommands = page.commands.join('\n\n');
                     if (joinedCommands.length > 1024) {
@@ -216,7 +217,7 @@ module.exports = {
                         let fieldCount = 1;
 
                         for (const line of page.commands) {
-                            // +2 for double newline character
+                  
                             if (fieldValue.length + line.length + 2 > 1024) {
                                 fields.push({ 
                                     name: `Command List (Part ${fieldCount})`, 
@@ -242,24 +243,24 @@ module.exports = {
                 return embed;
             };
 
-            // Function to create action rows with fixed dropdown menu
+           
             const createComponents = () => {
-                // Fixed dropdown - using predefined emoji strings instead of extracted ones
+              
                 const row1 = new ActionRowBuilder().addComponents(
                     new StringSelectMenuBuilder()
                         .setCustomId('pageSelect')
                         .setPlaceholder('📋 Select a category...')
                         .addOptions(currentSet.map((page, i) => {
                             return {
-                                label: page.title.replace(/^[^\w\s]\s*/, ''), // Remove any leading emoji
+                                label: page.title.replace(/^[^\w\s]\s*/, ''), 
                                 value: i.toString(),
                                 description: `View ${page.title.replace(/^[^\w\s]\s*/, '')} section`,
-                                emoji: page.icon // Use predefined safe emoji
+                                emoji: page.icon 
                             };
                         }))
                 );
 
-                // Better styled buttons
+              
                 const row2 = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
                         .setCustomId('previous')
@@ -283,71 +284,94 @@ module.exports = {
                 return [row1, row2];
             };
 
-            // Send initial reply
-            const reply = await interaction.reply({
+        
+            const reply = await interaction.editReply({
                 embeds: [createEmbed()],
                 components: createComponents(),
                 fetchReply: true
             });
 
-            // Collector Setup to handle interactions
+        
             const collector = reply.createMessageComponentCollector({ time: 180000 }); // Extended time to 3 minutes
 
             collector.on('collect', async (i) => {
-                if (i.user.id !== interaction.user.id) {
-                    await i.reply({ 
-                        content: `⚠️ Only ${interaction.user.tag} can interact with these controls.`, 
-                        ephemeral: true 
-                    });
-                    return;
-                }
+                try {
+                    if (i.user.id !== interaction.user.id) {
+                        await i.reply({ 
+                            content: `⚠️ Only ${interaction.user.tag} can interact with these controls.`, 
+                            ephemeral: true 
+                        });
+                        return;
+                    }
 
-                if (i.isStringSelectMenu()) {
-                    currentPage = parseInt(i.values[0]);
-                } else if (i.isButton()) {
-                    switch (i.customId) {
-                        case 'previous':
-                            currentPage = Math.max(0, currentPage - 1);
-                            break;
-                        case 'next':
-                            currentPage = Math.min(currentSet.length - 1, currentPage + 1);
-                            break;
-                        case 'switchMode':
-                            isPrefix = !isPrefix;
-                            currentSet = isPrefix ? prefixPages : slashPages;
-                            currentPage = 0;
-                            break;
+                
+                    await i.deferUpdate();
+
+                    if (i.isStringSelectMenu()) {
+                        currentPage = parseInt(i.values[0]);
+                    } else if (i.isButton()) {
+                        switch (i.customId) {
+                            case 'previous':
+                                currentPage = Math.max(0, currentPage - 1);
+                                break;
+                            case 'next':
+                                currentPage = Math.min(currentSet.length - 1, currentPage + 1);
+                                break;
+                            case 'switchMode':
+                                isPrefix = !isPrefix;
+                                currentSet = isPrefix ? prefixPages : slashPages;
+                                currentPage = 0;
+                                break;
+                        }
+                    }
+
+                    await i.editReply({
+                        embeds: [createEmbed()],
+                        components: createComponents()
+                    });
+                } catch (error) {
+                    console.error('Error handling interaction:', error);
+                 
+                    try {
+                        const errorMethod = i.replied || i.deferred ? i.editReply : i.reply;
+                        await errorMethod.call(i, {
+                            content: '⚠️ An error occurred while processing your interaction. Please try again.',
+                            ephemeral: true
+                        });
+                    } catch (secondaryError) {
+                        console.error('Failed to send error response:', secondaryError);
                     }
                 }
-
-                await i.update({
-                    embeds: [createEmbed()],
-                    components: createComponents()
-                });
             });
 
             collector.on('end', () => {
-                // Disable all buttons when collector expires
-                const disabledComponents = createComponents().map(row => {
-                    const updatedRow = new ActionRowBuilder();
-                    row.components.forEach(component => {
-                        if (component.data.type === 2) { // Button type
-                            updatedRow.addComponents(
-                                ButtonBuilder.from(component.data).setDisabled(true)
-                            );
-                        } else if (component.data.type === 3) { // StringSelectMenu type
-                            updatedRow.addComponents(
-                                StringSelectMenuBuilder.from(component.data).setDisabled(true)
-                            );
-                        }
-                    });
-                    return updatedRow;
-                });
+                try {
                 
-                interaction.editReply({ 
-                    components: disabledComponents,
-                    content: "⏱️ Help command session expired. Use `/help` again to restart."
-                }).catch(() => {});
+                    const disabledComponents = createComponents().map(row => {
+                        const updatedRow = new ActionRowBuilder();
+                        row.components.forEach(component => {
+                            if (component.data.type === 2) {
+                                updatedRow.addComponents(
+                                    ButtonBuilder.from(component.data).setDisabled(true)
+                                );
+                            } else if (component.data.type === 3) {
+                                updatedRow.addComponents(
+                                    StringSelectMenuBuilder.from(component.data).setDisabled(true)
+                                );
+                            }
+                        });
+                        return updatedRow;
+                    });
+                    
+                    interaction.editReply({ 
+                        components: disabledComponents,
+                        content: "⏱️ Help command session expired. Use `/help` again to restart."
+                    }).catch((error) => {
+                        console.error('Failed to update expired components:', error);
+                    });
+                } catch (error) {
+                    console.error('Error in collector end handler:', error);
+                }
             });
         } else {
             const embed = new EmbedBuilder()
@@ -361,7 +385,8 @@ module.exports = {
                 .setFooter({ text: 'All In One Bot • Error' })
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            // We need to use editReply since we already deferred the interaction
+            await interaction.editReply({ embeds: [embed], ephemeral: true });
         }
     }
 };
