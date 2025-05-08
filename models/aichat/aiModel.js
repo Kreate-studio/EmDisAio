@@ -5,7 +5,6 @@ const aiChatSchema = new mongoose.Schema({
   guildId: {
     type: String,
     required: true,
-    index: true
   },
 
   channelId: {
