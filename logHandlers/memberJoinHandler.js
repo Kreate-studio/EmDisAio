@@ -123,23 +123,23 @@ async function handleMemberJoinLog(client, member) {
 async function handleWelcomeChannel(member, welcomeSettings) {
     try {
         if (!welcomeSettings?.channelStatus || !welcomeSettings.welcomeChannelId) return;
-        
+
         const welcomeChannel = member.guild.channels.cache.get(welcomeSettings.welcomeChannelId);
         if (!welcomeChannel) return;
-        
+
         const user = member.user;
         const memberCount = member.guild.memberCount;
         const suffix = getOrdinalSuffix(memberCount);
-        const username = truncateUsername(user.username);
+        const username = truncateUsername(user.username, 15);
         const joinDate = member.joinedAt.toDateString();
         const creationDate = user.createdAt.toDateString();
         const serverIcon = member.guild.iconURL({ format: 'png', dynamic: true, size: 256 });
-        
+
         const randomImage = getRandomImage(data.welcomeImages);
         const shortTitle = truncateUsername(`Welcome ${memberCount}${suffix}`, 15);
 
         const welcomecard = new Wcard()
-            .setName(username)
+            .setName(username) 
             .setAvatar(user.displayAvatarURL({ format: 'png' }))
             .setTitle(shortTitle)
             .setColor("00e5ff")
@@ -168,10 +168,17 @@ async function handleWelcomeChannel(member, welcomeSettings) {
             embeds: [welcomeEmbed],
             files: [attachment]
         });
+
     } catch (error) {
         console.error('❌ Error in welcome channel handler:', error);
     }
 }
+
+
+function truncateUsername(name, maxLength = 15) {
+    return name.length > maxLength ? name.slice(0, maxLength - 3) + '...' : name;
+}
+
 
 async function handleWelcomeDM(member, welcomeSettings) {
     try {
