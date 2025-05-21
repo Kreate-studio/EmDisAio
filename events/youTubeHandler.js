@@ -34,7 +34,8 @@ async function resolveYouTubeChannelId(identifier) {
         //console.error(`Failed to resolve YouTube identifier "${identifier}":`, error.message);
         return null;
     }
-}const axios = require('axios');
+}
+const axios = require('axios');
 const { notificationsCollection } = require('../mongodb');
 const { EmbedBuilder } = require('discord.js');
 const cmdIcons = require('../UI/icons/commandicons'); 
@@ -62,10 +63,10 @@ async function fetchLatestVideos(client) {
             actualChannelId = await resolveYouTubeChannelId(platformId);
             
             if (!actualChannelId) {
-                console.error(`Could not resolve YouTube identifier "${platformId}" to a valid channel ID`);
+                //console.error(`Could not resolve YouTube identifier "${platformId}" to a valid channel ID`);
                 continue;
             } else if (actualChannelId !== platformId) {
-                console.log(`Resolved "${platformId}" to channel ID "${actualChannelId}"`);
+                //console.log(`Resolved "${platformId}" to channel ID "${actualChannelId}"`);
                 
                
                 try {
@@ -76,9 +77,9 @@ async function fetchLatestVideos(client) {
                             lastResolvedAt: new Date()
                         }}
                     );
-                    console.log(`Updated database with resolved channel ID for "${platformId}"`);
+                    //console.log(`Updated database with resolved channel ID for "${platformId}"`);
                 } catch (dbError) {
-                    console.error(`Failed to update resolved channel ID:`, dbError.message);
+                    //console.error(`Failed to update resolved channel ID:`, dbError.message);
                 }
             }
         }
@@ -91,7 +92,7 @@ async function fetchLatestVideos(client) {
             const response = await axios.get(apiUrl);
             
             if (!response.data || !response.data.items) {
-                console.error(`Invalid response from YouTube API for channel: ${actualChannelId}`);
+                //console.error(`Invalid response from YouTube API for channel: ${actualChannelId}`);
                 continue;
             }
 
@@ -178,9 +179,9 @@ async function fetchLatestVideos(client) {
                             newNotifiedVideos.shift();
                         }
                         
-                        console.log(`Sent notification for video ${videoId} in channel ${discordChannelId}`);
+                        //console.log(`Sent notification for video ${videoId} in channel ${discordChannelId}`);
                     } catch (error) {
-                        console.error(`Failed to send notification to channel ${discordChannelId}:`, error.message);
+                        //console.error(`Failed to send notification to channel ${discordChannelId}:`, error.message);
                     }
                 }
             }
