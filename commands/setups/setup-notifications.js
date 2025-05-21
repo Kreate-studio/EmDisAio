@@ -18,8 +18,6 @@ Test Passed    : ✓
 
 ☆.。.:*・°☆.。.:*・°☆.。.:*・°☆.。.:*・°☆
 */
-
-
 const { SlashCommandBuilder, PermissionsBitField, EmbedBuilder } = require('discord.js');
 const { notificationsCollection } = require('../../mongodb');
 const cmdIcons = require('../../UI/icons/commandicons');
@@ -72,7 +70,25 @@ module.exports = {
                             { name: 'Twitch', value: 'twitch' },
                             { name: 'Facebook', value: 'facebook' },
                             { name: 'Instagram', value: 'instagram' },
-                        ))),
+                        )))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('delete')
+                .setDescription('Delete a notification setup for a platform.')
+                .addStringOption(option =>
+                    option.setName('platform')
+                        .setDescription('The platform to delete notifications for.')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'YouTube', value: 'youtube' },
+                            { name: 'Twitch', value: 'twitch' },
+                            { name: 'Facebook', value: 'facebook' },
+                            { name: 'Instagram', value: 'instagram' },
+                        ))
+                .addStringOption(option =>
+                    option.setName('platform_id')
+                        .setDescription('The platform ID of the notification to delete.')
+                        .setRequired(true))),
     async execute(interaction) {
         if (interaction.isCommand && interaction.isCommand()) {
             const guild = interaction.guild;
@@ -171,8 +187,56 @@ module.exports = {
                     flags: 64,
                 });
             }
+        }
 
-        } else {
+        if (subcommand === 'delete') {
+            const platformId = interaction.options.getString('platform_id');
+
+            try {
+                // Check if the configuration exists before attempting to delete
+                const existingConfig = await notificationsCollection.findOne({ 
+                    guildId, 
+                    type: platform, 
+                    platformId 
+                });
+
+                if (!existingConfig) {
+                    return interaction.reply({
+                        content: `No ${platform} notification setup found for platform ID: ${platformId}`,
+                        flags: 64,
+                    });
+                }
+
+                // Delete the notification configuration
+                const result = await notificationsCollection.deleteOne({ 
+                    guildId, 
+                    type: platform, 
+                    platformId 
+                });
+
+                if (result.deletedCount === 1) {
+                    const embed = new EmbedBuilder()
+                        .setTitle(`${platform.charAt(0).toUpperCase() + platform.slice(1)} Notification Deleted`)
+                        .setDescription(`Successfully deleted the ${platform} notification setup for platform ID: ${platformId}`)
+                        .setColor('#FF0000');
+
+                    return interaction.reply({ embeds: [embed], flags: 64 });
+                } else {
+                    return interaction.reply({
+                        content: `Failed to delete the ${platform} notification setup. Please try again.`,
+                        flags: 64,
+                    });
+                }
+            } catch (error) {
+                console.error('Error deleting notification setup:', error);
+                return interaction.reply({
+                    content: 'An error occurred while deleting the notification setup. Please try again later.',
+                    flags: 64,
+                });
+            }
+        }
+
+        else {
             const embed = new EmbedBuilder()
             .setColor('#3498db')
             .setAuthor({ 
