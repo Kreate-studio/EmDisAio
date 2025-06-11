@@ -55,13 +55,6 @@ module.exports = {
         const existing = await TicketConfig.findOne({ serverId });
         const ownerOrManager = existing?.ownerId === user.id || (existing?.botManagers || []).includes(user.id);
 
-        if (!ownerOrManager && user.id !== guild.ownerId) {
-            return interaction.reply({
-                content: '❌ Only the server owner or bot managers can use this command.',
-                ephemeral: true
-            });
-        }
-
         if (sub === 'set') {
             const ticketChannel = options.getChannel('ticket_channel');
             const transcriptChannel = options.getChannel('transcript_channel');
