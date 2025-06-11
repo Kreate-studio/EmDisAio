@@ -101,14 +101,6 @@ module.exports = {
                 const storedConfig = await autoroleCollection.findOne({ serverId: serverIdInput });
                 const designatedOwnerId = storedConfig?.ownerId;
 
-                // Only allow the server owner or designated owner to configure.
-                if (memberId !== serverOwnerId && memberId !== designatedOwnerId) {
-                    return interaction.reply({
-                        content: 'Only the server owner or specified owners can use this command.',
-                        flags: 64
-                    });
-                }
-
                 await autoroleCollection.updateOne(
                     { serverId: serverIdInput },
                     {
