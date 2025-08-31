@@ -9,7 +9,12 @@ const aiChatSchema = new mongoose.Schema({
 
   channelId: {
     type: String,
-    required: true
+    required: false
+  },
+
+  mentionChannelId: {
+    type: String,
+    required: false
   },
 
   isEnabled: {
