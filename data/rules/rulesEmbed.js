@@ -10,7 +10,7 @@
         \/       \/                     \/  
                     
 DISCORD :  https://discord.com/invite/xQF9f9yUEM                   
-YouTube : https://www.youtube.com/@GlaceYT                         
+YouTube : https://www.youtube.com/@Katsumi_Studio                         
 
 Website        : ssrr.tech  
 Test Passed    : ✓

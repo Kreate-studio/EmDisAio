@@ -226,7 +226,7 @@ module.exports = (client) => {
                 ` - Requested by: ${track.requester ? `<@${track.requester.id}>` : "Unknown"}`; 
                 
                 const embed = new EmbedBuilder()
-                    .setAuthor({ name: "Now Playing..", iconURL: musicIcons.playerIcon, url: "https://discord.gg/xQF9f9yUEM" })
+                    .setAuthor({ name: "Now Playing..", iconURL: musicIcons.playerIcon, url: "https://discord.gg/67gme8db96" })
                     .setDescription(description)
                     .setImage('attachment://songcard.png')
                     .setFooter({ text: 'Let the Beat Drop!', iconURL: musicIcons.footerIcon })

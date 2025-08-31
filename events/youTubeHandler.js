@@ -138,7 +138,7 @@ async function fetchLatestVideos(client) {
                         .setAuthor({
                             name: 'New Video Uploaded!',
                             iconURL: cmdIcons.YouTubeIcon,
-                            url: 'https://discord.gg/xQF9f9yUEM', 
+                            url: 'https://discord.gg/67gme8db96', 
                         })
                         .setDescription(`Check out the new Video : [${video.snippet.title}](https://www.youtube.com/watch?v=${videoId})`)
                         .setURL(`https://www.youtube.com/watch?v=${videoId}`)
