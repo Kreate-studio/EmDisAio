@@ -81,8 +81,7 @@ module.exports = {
 };
 
 async function handleLootbox(message, userId, lootbox) {
-    const lootboxId = `lootbox_${lootbox.id}`;
-    const reward = getRandomReward(lootboxId);
+    const reward = getRandomReward(lootbox.id);
 
     if (!reward) {
         return message.reply('Could not determine a reward for this lootbox. Please contact an admin.');

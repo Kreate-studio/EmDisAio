@@ -67,6 +67,7 @@ module.exports = {
             const currentPrice = stockInfo ? stockInfo.price : inv.purchasePrice;
             return total + (inv.shares * (typeof currentPrice === 'number' ? currentPrice : 0));
         }, 0);
+        const xp = profile.xp || 0;
 
         const embed = new EmbedBuilder()
             .setTitle(`**${targetUser.username}'s Economic Profile**`)
@@ -74,7 +75,7 @@ module.exports = {
             .setThumbnail(targetUser.displayAvatarURL())
             .addFields(
                 { name: '👑 __**Wealth Rank**__', value: `**#${userRank}** out of ${totalUsers}` },
-                // <<< Updated Liquid Assets field
+                { name: '⭐ __**Experience**__', value: `**XP:** ${xp.toLocaleString()}` },
                 { name: '💰 __**Liquid Assets**__', value: `**Wallet:** $${wallet.toLocaleString()}\n**Bank:** $${bank.toLocaleString()} / $${bankLimit.toLocaleString()}` },
                 { name: '📊 __**Investments**__', value: `**Total Value:** $${investmentsValue.toLocaleString()}` },
                 { name: '📦 __**Inventory**__', value: `**Total Value:** $${inventoryValue.toLocaleString()}` },

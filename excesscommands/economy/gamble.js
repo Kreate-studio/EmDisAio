@@ -1,4 +1,4 @@
-const { getEconomyProfile, updateWallet } = require('../../models/economy');
+const { getEconomyProfile, updateWallet, updateEconomyProfile } = require('../../models/economy');
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
@@ -50,7 +50,7 @@ module.exports = {
         let embedColor;
 
         if (win) {
-            const winnings = amount; 
+            const winnings = amount * 2; 
             await updateWallet(userId, winnings);
             resultMessage = `You gambled **$${amount.toLocaleString()}** and won **$${winnings.toLocaleString()}**! Congratulations!`;
             embedColor = '#2ECC71'; // Green
