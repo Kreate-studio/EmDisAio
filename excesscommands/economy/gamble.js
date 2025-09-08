@@ -64,7 +64,10 @@ module.exports = {
             .setTitle('🎰 Gamble Result 🎰')
             .setDescription(resultMessage)
             .setColor(embedColor)
-            .setFooter({ text: luckPotion ? 'Your Potion of Luck was active!' : '' });
+
+        if (luckPotion) {
+            embed.setFooter({ text: 'Your Potion of Luck was active!' });
+        }
 
         message.reply({ embeds: [embed] });
     },
