@@ -1,18 +1,17 @@
-const { getEconomyProfile, updateEconomyProfile } = require('../../models/economy');
 const { EmbedBuilder } = require('discord.js');
+const { getEconomyProfile, updateEconomyProfile } = require('../../models/economy');
+const { checkCooldown, setCooldown } = require('../../utils/cooldownManager');
 
 module.exports = {
     name: 'beg',
     description: 'Beg for some money.',
     async execute(message) {
         const userId = message.author.id;
-        const profile = await getEconomyProfile(userId);
+        const commandName = 'beg';
+        const cooldown = 10 * 60 * 1000;
 
-        const now = Date.now();
-        const cooldown = 10 * 60 * 1000; 
-
-        if (profile.lastBeg && now - profile.lastBeg < cooldown) {
-            const remaining = cooldown - (now - profile.lastBeg);
+        const remaining = await checkCooldown(userId, commandName, cooldown);
+        if (remaining > 0) {
             const remainingMinutes = Math.ceil(remaining / (60 * 1000));
             const embed = new EmbedBuilder()
                 .setTitle('Begging Cooldown')
@@ -24,12 +23,14 @@ module.exports = {
             return message.reply({ embeds: [embed] });
         }
 
-        const earnings = Math.floor(Math.random() * (50 - 10 + 1)) + 10; 
+        const profile = await getEconomyProfile(userId);
+
+        const earnings = Math.floor(Math.random() * (50 - 10 + 1)) + 10;
 
         await updateEconomyProfile(userId, { 
             wallet: profile.wallet + earnings, 
-            lastBeg: now 
         });
+        await setCooldown(userId, commandName);
 
         const embed = new EmbedBuilder()
             .setTitle('Begging Successful')

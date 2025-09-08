@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
-const truthOrDareConfigSchema = new mongoose.Schema({
+const nsfwTruthOrDareConfigSchema = new mongoose.Schema({
     serverId: { type: String, required: true },
     channelId: { type: String, required: true, unique: true },
     messageId: { type: String, required: true, unique: true }
 });
 
-module.exports = mongoose.model('TruthOrDareConfig', truthOrDareConfigSchema);
+module.exports = mongoose.model('NsfwTruthOrDareConfig', nsfwTruthOrDareConfigSchema);

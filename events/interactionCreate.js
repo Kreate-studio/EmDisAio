@@ -9,6 +9,8 @@ const verificationCodes = new Map();
 const SuggestionVote = require('../models/suggestions/SuggestionVote');
 const truths = require('../data/truthordare/truth.json');
 const dares = require('../data/truthordare/dare.json');
+const nsfwTruths = require('../data/truthordare/nsfw_truth.json');
+const nsfwDares = require('../data/truthordare/nsfw_dare.json');
 const DisabledCommand = require('../models/commands/DisabledCommands'); 
 module.exports = {
     name: 'interactionCreate',
@@ -75,6 +77,49 @@ module.exports = {
                         .setStyle(ButtonStyle.Secondary)
                 );
         
+                // Post the new message to the same channel, publicly
+                return interaction.channel.send({ embeds: [embed], components: [buttons] });
+            }
+            if (customId.startsWith('nsfw_tod_')) {
+                if (!interaction.channel.nsfw) {
+                    return interaction.reply({ content: 'This command can only be used in NSFW channels.', ephemeral: true });
+                }
+                await interaction.deferUpdate(); // acknowledge interaction
+
+                let result;
+
+                if (customId === 'nsfw_tod_truth') {
+                    result = `🧠 **Truth:** ${nsfwTruths[Math.floor(Math.random() * nsfwTruths.length)]}`;
+                } else if (customId === 'nsfw_tod_dare') {
+                    result = `🔥 **Dare:** ${nsfwDares[Math.floor(Math.random() * nsfwDares.length)]}`;
+                } else if (customId === 'nsfw_tod_random') {
+                    const pool = Math.random() < 0.5 ? nsfwTruths : nsfwDares;
+                    const label = pool === nsfwTruths ? '🧠 **Truth:**' : '🔥 **Dare:**';
+                    result = `${label} ${pool[Math.floor(Math.random() * pool.length)]}`;
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🔥 NSFW Truth or Dare! 🔥')
+                    .setDescription(result)
+                    .setColor('#ff0000')
+                    .setFooter({ text: `${user.username} picked this`, iconURL: user.displayAvatarURL() })
+                    .setTimestamp();
+
+                const buttons = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('nsfw_tod_truth')
+                        .setLabel('Truth 🧠')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('nsfw_tod_dare')
+                        .setLabel('Dare 🔥')
+                        .setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder()
+                        .setCustomId('nsfw_tod_random')
+                        .setLabel('Random 🎲')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
                 // Post the new message to the same channel, publicly
                 return interaction.channel.send({ embeds: [embed], components: [buttons] });
             }

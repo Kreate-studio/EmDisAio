@@ -1,40 +1,44 @@
 // commands/economy/paybills.js
-const { getEconomyProfile, updateBills, updateWallet, handleEviction } = require('../../models/economy');
+const { getEconomyProfile, updateBills, updateWallet } = require('../../models/economy');
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
     name: 'paybills',
-    description: 'View and pay your outstanding bills.',
+    description: 'View and pay your outstanding property upkeep bills.',
     async execute(message) {
         const userId = message.author.id;
         const profile = await getEconomyProfile(userId);
 
-        if (!profile.house) {
-            return message.reply("You don't have any bills to pay since you don't own a property.");
-        }
+        const totalDue = profile.bills.unpaidAmount || 0;
 
-        const bills = profile.bills;
-        const totalDue = bills.unpaidRent + bills.unpaidUtilities;
         if (totalDue === 0) {
-            return message.reply("You have no unpaid bills.");
+            return message.reply("You have no outstanding bills to pay. Your next property upkeep bill is scheduled for <t:" + Math.floor(profile.bills.nextBillDate / 1000) + ":D>");
         }
-
-        if (profile.wallet < totalDue) {
-            return message.reply(`You don't have enough money to pay all bills. You need $${totalDue}, but you only have $${profile.wallet}.`);
-        }
-
-        await updateWallet(userId, -totalDue);
-        await updateBills(userId, {
-            rentDueDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
-            utilitiesDueDate: Date.now() + 30 * 24 * 60 * 60 * 1000,
-            unpaidRent: 0,
-            unpaidUtilities: 0
-        });
 
         const embed = new EmbedBuilder()
-            .setTitle('Bills Paid')
-            .setDescription(`You have successfully paid a total of $${totalDue} in bills.`)
-            .setColor('#00FF00');
+            .setTitle('Property Upkeep Bill')
+            .setColor('#E67E22')
+            .setDescription(`You have an outstanding bill of **$${totalDue.toLocaleString()}**.`);
+
+        if (profile.wallet < totalDue) {
+            embed.setColor('#E74C3C');
+            embed.addFields({ name: 'Insufficient Funds', value: `You don't have enough money in your wallet to pay this bill. You need $${totalDue.toLocaleString()}, but you only have $${profile.wallet.toLocaleString()}.` });
+            return message.reply({ embeds: [embed] });
+        }
+
+        // Sufficient funds, proceed with payment
+        await updateWallet(userId, -totalDue);
+
+        // Reset the bill tracking
+        await updateBills(userId, {
+            unpaidAmount: 0,
+            billIssueDate: null, // Reset the grace period trigger
+            nextBillDate: profile.bills.nextBillDate // The next due date doesn't change
+        });
+
+        embed.setTitle('✅ Bills Paid')
+            .setColor('#2ECC71')
+            .setDescription(`You have successfully paid your outstanding bill of **$${totalDue.toLocaleString()}**.`);
 
         message.reply({ embeds: [embed] });
     },

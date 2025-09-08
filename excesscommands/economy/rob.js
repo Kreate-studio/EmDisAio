@@ -1,4 +1,4 @@
-const { getEconomyProfile, updateEconomyProfile } = require('../../models/economy');
+const { getEconomyProfile, updateEconomyProfile, updateWallet, removeFromInventory } = require('../../models/economy');
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
@@ -9,19 +9,11 @@ module.exports = {
         const target = message.mentions.users.first();
         
         if (!target) {
-            const embed = new EmbedBuilder()
-                .setTitle('User Not Mentioned')
-                .setDescription('Please mention a user to rob.')
-                .setColor('#FF0000');
-            return message.channel.send({ embeds: [embed] });
+            return message.reply('Please mention a user to rob.');
         }
 
         if (target.id === userId) {
-            const embed = new EmbedBuilder()
-                .setTitle('Invalid Target')
-                .setDescription('You cannot rob yourself!')
-                .setColor('#FF0000');
-            return message.channel.send({ embeds: [embed] });
+            return message.reply('You cannot rob yourself!');
         }
 
         const profile = await getEconomyProfile(userId);
@@ -29,57 +21,61 @@ module.exports = {
 
         const now = Date.now();
         const cooldown = 24 * 60 * 60 * 1000;
-
-        if (profile.lastRob && now - profile.lastRob < cooldown) {
-            const remaining = cooldown - (now - profile.lastRob);
-            const remainingHours = Math.ceil(remaining / (60 * 60 * 1000));
-            const embed = new EmbedBuilder()
-                .setTitle('Cooldown Active')
-                .setDescription(`You have already attempted to rob someone. Try again in ${remainingHours} hour(s).`)
-                .setColor('#FF0000');
-            return message.channel.send({ embeds: [embed] });
+        if (profile.cooldowns && profile.cooldowns.rob && now - profile.cooldowns.rob < cooldown) {
+            const remaining = cooldown - (now - profile.cooldowns.rob);
+            return message.reply(`You are on cooldown. Try again in ${Math.ceil(remaining / 3600000)} hours.`);
         }
 
         if (targetProfile.wallet < 100) {
-            const embed = new EmbedBuilder()
-                .setTitle('Insufficient Funds')
-                .setDescription(`${target.username} does not have enough money to rob.`)
-                .setColor('#FF0000');
-            return message.channel.send({ embeds: [embed] });
+            return message.reply(`${target.username} does not have enough money to be worth robbing.`);
         }
 
-        const successRate = 0.5;
+        // --- Check for Anti-Rob Shield ---
+        const antiRobShield = targetProfile.activeEffects?.find(e => e.name === 'Anti-Rob Shield' && e.expiresAt > now);
+        if (antiRobShield) {
+            // The shield protects them, but it gets used up.
+            const newEffects = targetProfile.activeEffects.filter(e => e.name !== 'Anti-Rob Shield');
+            await updateEconomyProfile(target.id, { activeEffects: newEffects });
+            await updateEconomyProfile(userId, { [`cooldowns.rob`]: now });
+
+            return message.reply(`Your robbery attempt failed! ${target.username} was protected by an Anti-Rob Shield, which has now been consumed.`);
+        }
+
+        // --- Calculate Success Rate ---
+        let successRate = 0.5; // Base success rate
+        if (targetProfile.upgrades?.hasSafehouse) {
+            successRate -= 0.2; // Safe House reduces success rate
+        }
+        const luckPotion = profile.activeEffects?.find(e => e.name === 'Potion of Luck' && e.expiresAt > now);
+        if (luckPotion) {
+            successRate += 0.1; // Potion of Luck increases success rate
+        }
+
         const success = Math.random() < successRate;
+
+        await updateEconomyProfile(userId, { [`cooldowns.rob`]: now });
 
         if (success) {
             const amount = Math.floor(Math.random() * Math.min(500, targetProfile.wallet * 0.3)) + 1;
             const stolen = Math.min(amount, targetProfile.wallet);
 
-            await updateEconomyProfile(userId, { 
-                wallet: profile.wallet + stolen, 
-                lastRob: now 
-            });
-            await updateEconomyProfile(target.id, { 
-                wallet: targetProfile.wallet - stolen 
-            });
+            await updateWallet(userId, stolen);
+            await updateWallet(target.id, -stolen);
 
             const embed = new EmbedBuilder()
-                .setTitle('Robbery Successful')
-                .setDescription(`You successfully robbed $${stolen} from ${target.username}!`)
-                .setColor('#00FF00');
-            message.channel.send({ embeds: [embed] });
+                .setTitle('✅ Robbery Successful!')
+                .setDescription(`You successfully robbed **$${stolen.toLocaleString()}** from ${target.username}!`)
+                .setColor('#2ECC71');
+            message.reply({ embeds: [embed] });
         } else {
             const penalty = Math.floor(profile.wallet * 0.1);
-            await updateEconomyProfile(userId, { 
-                wallet: Math.max(profile.wallet - penalty, 0),
-                lastRob: now 
-            });
+            await updateWallet(userId, -penalty);
 
             const embed = new EmbedBuilder()
-                .setTitle('Robbery Failed')
-                .setDescription(`You failed to rob ${target.username} and lost $${penalty}.`)
-                .setColor('#FF0000');
-            message.channel.send({ embeds: [embed] });
+                .setTitle('❌ Robbery Failed')
+                .setDescription(`You failed to rob ${target.username} and lost **$${penalty.toLocaleString()}** as a penalty.`)
+                .setColor('#E74C3C');
+            message.reply({ embeds: [embed] });
         }
     },
 };

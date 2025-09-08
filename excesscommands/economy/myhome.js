@@ -1,37 +1,70 @@
-// commands/economy/myhome.js
 const { getEconomyProfile } = require('../../models/economy');
 const { EmbedBuilder } = require('discord.js');
+const { shopItems } = require('../../data/shopItems');
+
+// Create a map for quick lookup of item details by ID
+const allItemsById = Object.values(shopItems).flat().reduce((acc, item) => {
+    acc[item.id] = item;
+    return acc;
+}, {});
 
 module.exports = {
     name: 'myhome',
-    description: 'View your current property details, bills, and status.',
+    aliases: ['myhouse', 'myproperties'],
+    description: 'View the properties you own and your current bill status.',
     async execute(message) {
         const userId = message.author.id;
         const profile = await getEconomyProfile(userId);
 
-        if (!profile.house) {
-            return message.reply("You currently don't own a property. Use `!viewhouses` to see available properties.");
-        }
-
-        const bills = profile.bills;
-        const rentDueDate = new Date(bills.rentDueDate).toLocaleDateString();
-        const utilitiesDueDate = new Date(bills.utilitiesDueDate).toLocaleDateString();
-        const unpaidTotal = bills.unpaidRent + bills.unpaidUtilities;
+        const ownedHouses = profile.inventory.filter(item => {
+            const itemDetails = allItemsById[item.id];
+            return itemDetails && itemDetails.type === 'house';
+        });
 
         const embed = new EmbedBuilder()
-            .setTitle(`${profile.house.name} - Your Home`)
-            .setDescription(`
-                **Property**: ${profile.house.name}
-                **Monthly Rent**: $${profile.house.monthlyRent}
-                **Utilities Cost**: $${profile.house.utilities}
-                **Rent Due Date**: ${rentDueDate}
-                **Utilities Due Date**: ${utilitiesDueDate}
-                **Unpaid Amount**: $${unpaidTotal}
-                **Eviction Notice**: ${profile.evictionNotice ? '⚠️ Yes' : 'No'}
-            `)
-            .setColor(profile.evictionNotice ? '#FF0000' : '#00FF00')
-            .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
-            .setTimestamp();
+            .setTitle('🏡 Your Properties & Bills')
+            .setColor('#0099FF')
+            .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() });
+
+        if (ownedHouses.length === 0) {
+            embed.setColor('#E74C3C');
+            embed.setDescription("You currently don't own any real estate. Use the `/shop` command to browse available properties.");
+        } else {
+            let totalUpkeep = 0;
+            ownedHouses.forEach(house => {
+                const houseDetails = allItemsById[house.id];
+                const upkeep = houseDetails.monthlyUpkeep || 0;
+                totalUpkeep += upkeep;
+                embed.addFields({
+                    name: `**${house.name}**`,
+                    value: `*Monthly Upkeep: $${upkeep.toLocaleString()}*`,
+                    inline: false
+                });
+            });
+            embed.setFooter({ text: `Total Monthly Upkeep: $${totalUpkeep.toLocaleString()}` });
+        }
+
+        // Add billing information
+        const bills = profile.bills;
+        const totalDue = bills.unpaidAmount || 0;
+
+        if (totalDue > 0) {
+            embed.addFields({
+                name: '\n💰 Billing Status',
+                value: `**Amount Due:** **$${totalDue.toLocaleString()}**\n` +
+                       `*Bill issued on: <t:${Math.floor(bills.billIssueDate / 1000)}:D>*\n` +
+                       `*Pay within 7 days to avoid foreclosure!*`,
+                inline: false
+            });
+            embed.setColor('#E67E22'); // Orange color to indicate a pending bill
+        } else {
+             embed.addFields({
+                name: '\n💰 Billing Status',
+                value: `You have no outstanding bills.\n` +
+                       `Next bill is scheduled for <t:${Math.floor(bills.nextBillDate / 1000)}:D>.`,
+                inline: false
+            });
+        }
 
         message.reply({ embeds: [embed] });
     },

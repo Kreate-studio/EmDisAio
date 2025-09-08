@@ -20,7 +20,7 @@ Test Passed    : ✓
 */
 
 
-const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField, ChannelType } = require('discord.js');
 const { hentaiCommandCollection } = require('../../mongodb'); 
 const cmdIcons = require('../../UI/icons/commandicons');
 const checkPermissions = require('../../utils/checkPermissions');
@@ -33,10 +33,15 @@ module.exports = {
         .addSubcommand(sub =>
             sub
                 .setName('set')
-                .setDescription('Enable or disable hentai commands')
+                .setDescription('Enable or disable hentai commands for a specific channel')
                 .addBooleanOption(option =>
                     option.setName('status')
                         .setDescription('Enable (true) or disable (false) hentai commands')
+                        .setRequired(true))
+                .addChannelOption(option =>
+                    option.setName('channel')
+                        .setDescription('The channel where hentai commands will be allowed')
+                        .addChannelTypes(ChannelType.GuildText)
                         .setRequired(true))
         )
         // Subcommand to view the current configuration.
@@ -62,6 +67,8 @@ module.exports = {
                 }
                 
                 const status = interaction.options.getBoolean('status');
+                const channel = interaction.options.getChannel('channel');
+
                 if (status === null) {
                     return interaction.reply({
                         content: 'Invalid input. Please provide a valid status.',
@@ -76,21 +83,27 @@ module.exports = {
                 const serverOwnerId = guild.ownerId;
                 await hentaiCommandCollection.updateOne(
                     { serverId },
-                    { $set: { serverId, status, ownerId: serverOwnerId } },
+                    { $set: { serverId, status, ownerId: serverOwnerId, channelId: channel.id } },
                     { upsert: true }
                 );
                 
+                const replyMessage = status
+                    ? `Hentai commands have been **enabled** for ${channel}.`
+                    : 'Hentai commands have been **disabled**.';
+
                 return interaction.reply({
-                    content: `Hentai commands have been ${status ? '**enabled**' : '**disabled**'} for server ID ${serverId}.`,
+                    content: replyMessage,
                     flags: 64
                 });
+
             } else if (subcommand === 'view') {
                 const configData = await hentaiCommandCollection.findOne({ serverId });
                 let description;
                 if (configData) {
-                    description = `**Status:** ${configData.status ? 'Enabled' : 'Disabled'}\n**Owner ID:** ${configData.ownerId}`;
+                    const channel = configData.channelId ? `<#${configData.channelId}>` : 'Not set';
+                    description = `**Status:** ${configData.status ? 'Enabled' : 'Disabled'}\n**Channel:** ${channel}\n**Owner ID:** ${configData.ownerId}`;
                 } else {
-                    description = 'No configuration found. Please set up hentai commands using `/sethentaicommands set`.';
+                    description = 'No configuration found. Please set up hentai commands using `/setup-hentai set`.';
                 }
                 
                 const embed = new EmbedBuilder()
@@ -116,24 +129,3 @@ module.exports = {
         }
     }
 };
-
-/*
-
-☆.。.:*・°☆.。.:*・°☆.。.:*・°☆.。.:*・°☆
-                                                 
-  _________ ___ ___ ._______   _________    
- /   _____//   |   \|   \   \ /   /  _  \   
- \_____  \/    ~    \   |\   Y   /  /_\  \  
- /        \    Y    /   | \     /    |    \ 
-/_______  /\___|_  /|___|  \___/\____|__  / 
-        \/       \/                     \/  
-                    
-DISCORD :  https://discord.com/invite/xQF9f9yUEM                   
-YouTube : https://www.youtube.com/@Katsumi_Studio                         
-
-Command Verified : ✓  
-Website        : ssrr.tech  
-Test Passed    : ✓
-
-☆.。.:*・°☆.。.:*・°☆.。.:*・°☆.。.:*・°☆
-*/

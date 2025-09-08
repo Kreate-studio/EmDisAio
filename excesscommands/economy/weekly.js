@@ -1,18 +1,17 @@
-const { getEconomyProfile, updateEconomyProfile } = require('../../models/economy');
 const { EmbedBuilder } = require('discord.js');
+const { getEconomyProfile, updateEconomyProfile } = require('../../models/economy');
+const { checkCooldown, setCooldown } = require('../../utils/cooldownManager');
 
 module.exports = {
     name: 'weekly',
     description: 'Claim your weekly reward.',
     async execute(message) {
         const userId = message.author.id;
-        const profile = await getEconomyProfile(userId);
-
-        const now = Date.now();
+        const commandName = 'weekly';
         const cooldown = 7 * 24 * 60 * 60 * 1000;
 
-        if (profile.lastWeekly && now - profile.lastWeekly < cooldown) {
-            const remaining = cooldown - (now - profile.lastWeekly);
+        const remaining = await checkCooldown(userId, commandName, cooldown);
+        if (remaining > 0) {
             const remainingDays = Math.ceil(remaining / (24 * 60 * 60 * 1000));
             const embed = new EmbedBuilder()
                 .setTitle('Weekly Reward Cooldown')
@@ -20,6 +19,8 @@ module.exports = {
                 .setColor('#FF0000');
             return message.reply({ embeds: [embed] });
         }
+
+        const profile = await getEconomyProfile(userId);
 
         let baseReward = 1000;
         let reward = baseReward + (profile.dailyStreak * 100);
@@ -30,8 +31,8 @@ module.exports = {
 
         await updateEconomyProfile(userId, { 
             wallet: profile.wallet + reward, 
-            lastWeekly: now 
         });
+        await setCooldown(userId, commandName);
 
         const embed = new EmbedBuilder()
             .setTitle('Weekly Reward')

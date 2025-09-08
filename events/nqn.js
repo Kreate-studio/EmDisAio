@@ -191,17 +191,15 @@ module.exports = async (client) => {
         
         // Two regex patterns: one for text format emojis and one for custom Discord emojis
         const textEmojiRegex = /:(\w+):/g;
-        const discordEmojiRegex = /<(a)?:([^:]+):(\d+)>/g;
         
         // Check for text format emojis first (:emoji:)
         const textMatches = [...message.content.matchAll(textEmojiRegex)];
-        const discordMatches = [...message.content.matchAll(discordEmojiRegex)];
         
         let shouldReplaceMessage = false;
         let newContent = message.content;
         
         // If we have emoji matches in either format
-        if (textMatches.length > 0 || discordMatches.length > 0) {
+        if (textMatches.length > 0) {
             const guildEmojis = message.guild.emojis.cache;
             const emojiGuilds = client.guilds.cache;
             
@@ -225,17 +223,6 @@ module.exports = async (client) => {
                     
                     if (emoji) {
                         newContent = newContent.replace(new RegExp(`:${emojiName}:`, 'g'), emoji.toString());
-                        shouldReplaceMessage = true;
-                    }
-                }
-            }
-            
-            // For non-Nitro users, also check for animated emojis in Discord format
-            if (!userHasNitro && discordMatches.length > 0) {
-                for (const [fullMatch, isAnimated, emojiName, emojiId] of discordMatches) {
-                    // Only replace animated emojis for non-Nitro users
-                    if (isAnimated === 'a') {
-                        const emojiString = `<${isAnimated}:${emojiName}:${emojiId}>`;
                         shouldReplaceMessage = true;
                     }
                 }

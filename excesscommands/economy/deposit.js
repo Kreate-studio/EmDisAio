@@ -1,6 +1,8 @@
 const { getEconomyProfile, updateEconomyProfile } = require('../../models/economy');
 const { EmbedBuilder } = require('discord.js');
 
+const DEFAULT_BANK_LIMIT = 50000;
+
 module.exports = {
     name: 'deposit',
     aliases: ['dep'],
@@ -9,41 +11,49 @@ module.exports = {
         const userId = message.author.id;
         const profile = await getEconomyProfile(userId);
 
-        const amount = parseInt(args[0], 10);
+        if (args.length === 0) {
+            return message.reply('Please specify an amount to deposit. Usage: `deposit <amount>`');
+        }
+
+        const amountArg = args[0].toLowerCase();
+        let amount;
+
+        if (amountArg === 'all') {
+            amount = profile.wallet;
+        } else {
+            amount = parseInt(amountArg);
+        }
 
         if (isNaN(amount) || amount <= 0) {
-            const embed = new EmbedBuilder()
-                .setTitle('Invalid Amount')
-                .setDescription('Please specify a valid amount to deposit.')
-                .setColor('#FF0000')
-                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
-                .setTimestamp();
-            
-            return message.channel.send({ embeds: [embed] });
+            return message.reply('Please provide a valid amount to deposit.');
         }
 
-        if (amount > profile.wallet) {
-            const embed = new EmbedBuilder()
-                .setTitle('Insufficient Funds')
-                .setDescription('You do not have enough money in your wallet.')
-                .setColor('#FF0000')
-                .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
-                .setTimestamp();
-
-            return message.reply({ embeds: [embed] });
+        if (profile.wallet < amount) {
+            return message.reply("You don't have that much money in your wallet.");
         }
 
-        await updateEconomyProfile(userId, { 
-            wallet: profile.wallet - amount,
-            bank: profile.bank + amount 
+        const bankLimit = profile.bankLimit || DEFAULT_BANK_LIMIT;
+        const availableSpace = bankLimit - profile.bank;
+
+        if (availableSpace <= 0) {
+            return message.reply('Your bank is full! Consider upgrading your vault.');
+        }
+
+        const depositAmount = Math.min(amount, availableSpace);
+
+        await updateEconomyProfile(userId, {
+            wallet: profile.wallet - depositAmount,
+            bank: profile.bank + depositAmount
         });
 
         const embed = new EmbedBuilder()
-            .setTitle('Deposit Successful')
-            .setDescription(`You have deposited $${amount} into your bank.`)
-            .setColor('#00FF00')
-            .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
-            .setTimestamp();
+            .setTitle('✅ Deposit Successful')
+            .setDescription(`You have deposited **$${depositAmount.toLocaleString()}** into your bank.`)
+            .setColor('#2ECC71');
+        
+        if (amount > depositAmount) {
+            embed.setFooter({ text: `Your bank was too full to deposit the full amount.` });
+        }
 
         message.reply({ embeds: [embed] });
     },

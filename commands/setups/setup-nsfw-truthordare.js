@@ -1,12 +1,12 @@
 
 const { SlashCommandBuilder, PermissionsBitField, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const TruthOrDareConfig = require('../../models/truthordare/TruthOrDareConfig');
+const NsfwTruthOrDareConfig = require('../../models/truthordare/NsfwTruthOrDareConfig');
 const checkPermissions = require('../../utils/checkPermissions');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('setup-truthordare')
-        .setDescription('Configure the Truth or Dare channel')
+        .setName('setup-nsfw-truthordare')
+        .setDescription('[NSFW] Configure the NSFW Truth or Dare channel')
         .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageChannels)
         .addChannelOption(opt =>
             opt.setName('channel')
@@ -27,8 +27,12 @@ module.exports = {
         const channelId = targetChannel.id;
 
         if (enabled) {
+            if (!targetChannel.nsfw) {
+                return interaction.reply({ content: '❌ The selected channel must be marked as NSFW.', ephemeral: true });
+            }
+
             // Clean up old message if it exists in the same channel
-            const oldConfig = await TruthOrDareConfig.findOne({ channelId });
+            const oldConfig = await NsfwTruthOrDareConfig.findOne({ channelId });
             if (oldConfig) {
                 try {
                     const oldMessage = await targetChannel.messages.fetch(oldConfig.messageId);
@@ -39,44 +43,44 @@ module.exports = {
             }
 
             const embed = new EmbedBuilder()
-                .setTitle('🎭 Truth or Dare')
-                .setDescription('Click a button below to receive a **Truth**, **Dare**, or let fate decide with **Random**! 🎲')
-                .setColor('#ff66cc')
-                .setFooter({ text: 'Game time!' })
+                .setTitle('🔥 NSFW Truth or Dare')
+                .setDescription('Click a button for a **Truth**, **Dare**, or a **Random** pick! 😉')
+                .setColor('#ff0000')
+                .setFooter({ text: 'Adults only!' })
                 .setTimestamp();
 
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('tod_truth').setLabel('Truth').setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId('tod_dare').setLabel('Dare').setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('tod_random').setLabel('Random').setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder().setCustomId('nsfw_tod_truth').setLabel('Truth').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId('nsfw_tod_dare').setLabel('Dare').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('nsfw_tod_random').setLabel('Random').setStyle(ButtonStyle.Secondary)
             );
 
             const message = await targetChannel.send({ embeds: [embed], components: [row] });
 
-            await TruthOrDareConfig.findOneAndUpdate(
+            await NsfwTruthOrDareConfig.findOneAndUpdate(
                 { channelId },
                 { serverId, channelId, messageId: message.id },
                 { upsert: true }
             );
 
-            return interaction.reply({ content: `✅ Truth or Dare system is now active in ${targetChannel}.`, ephemeral: true });
+            return interaction.reply({ content: `✅ NSFW Truth or Dare system is now active in ${targetChannel}.`, ephemeral: true });
 
         } else { // Disabling
-            const config = await TruthOrDareConfig.findOne({ channelId });
+            const config = await NsfwTruthOrDareConfig.findOne({ channelId });
             if (!config) {
-                return interaction.reply({ content: '❌ The Truth or Dare system is not active in this channel.', ephemeral: true });
+                return interaction.reply({ content: '❌ The NSFW Truth or Dare system is not active in this channel.', ephemeral: true });
             }
 
             try {
                 const message = await targetChannel.messages.fetch(config.messageId);
                 await message.delete();
             } catch (error) {
-                console.warn('Could not delete the Truth or Dare message. It might have been deleted already.');
+                console.warn('Could not delete the NSFW Truth or Dare message. It might have been deleted already.');
             }
 
-            await TruthOrDareConfig.findOneAndDelete({ channelId });
+            await NsfwTruthOrDareConfig.findOneAndDelete({ channelId });
 
-            return interaction.reply({ content: `✅ The Truth or Dare system has been disabled for ${targetChannel}.`, ephemeral: true });
+            return interaction.reply({ content: `✅ The NSFW Truth or Dare system has been disabled for ${targetChannel}.`, ephemeral: true });
         }
     }
 };
