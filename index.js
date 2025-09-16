@@ -113,6 +113,9 @@ const loadEventHandlers = () => {
  
     console.log(`${colors.green}${colors.bright}Status: ${colors.reset}${colors.green}All systems operational${colors.reset}`);
     console.log(`${colors.gray}Last checked: ${colors.reset}${colors.cyan}${new Date().toLocaleTimeString()}${colors.reset}\n`);
+
+    const confessionHandler = require('./events/confessionHandler');
+    client.on('interactionCreate', confessionHandler);
 };
 
 loadEventHandlers();

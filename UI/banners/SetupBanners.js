@@ -1,8 +1,8 @@
 const setupBanners = {
-    helpBanner : 'https://ibb.co/nvH9pKB',
-    verificationBanner : 'https://ibb.co/nvH9pKB',
-    ticketBanner : 'https://i.ibb.co/h1DBsRnv/ticket.gif',
-    autovcBanner : 'https://i.ibb.co/mk6Tj1r/autovc.gif',
+    helpBanner : 'https://ibb.co/4ZmyRZRv',
+    verificationBanner : 'https://ibb.co/FkRtdkKw',
+    ticketBanner : 'https://i.ibb.co/DfL11Rdf/Tickets.png',
+    autovcBanner : 'https://ibb.co/ZksdJyS',
 };
 
 module.exports = setupBanners;
