@@ -108,8 +108,7 @@ module.exports = {
         const shopMessage = await message.reply({ embeds: [embed], components: components });
 
         const collector = shopMessage.createMessageComponentCollector({ 
-            componentType: ComponentType.StringSelect | ComponentType.Button, 
-            time: 120000 // 2 minutes
+            time: 600000 // 10 minutes
         });
 
         collector.on('collect', async interaction => {
