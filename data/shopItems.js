@@ -1,3 +1,5 @@
+const { petShopItems } = require('./petShopItems');
+
 const shopItems = {
     "Real Estate": [
         {
@@ -193,7 +195,8 @@ const shopItems = {
             stackable: false,
             category: "Upgrades"
         }
-    ]
+    ],
+    ...petShopItems
 };
 
 module.exports = { shopItems };

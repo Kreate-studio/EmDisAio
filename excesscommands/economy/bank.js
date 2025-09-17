@@ -10,10 +10,11 @@ module.exports = {
 
         const wallet = Number(profile.wallet ?? 1);
         const bank = Number(profile.bank ?? 0);
+        const gold = Number(profile.gold ?? 0);
 
         const embed = new EmbedBuilder()
             .setTitle('Bank Balance')
-            .setDescription(`**Wallet:** $${wallet}\n**Bank:** $${bank}`)
+            .setDescription(`**Wallet:** $${wallet}\n**Bank:** $${bank}\n**Gold:** ${gold}`)
             .setColor('#FF00FF')
             .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
             .setTimestamp();

@@ -45,7 +45,7 @@ module.exports = {
         const profile = allProfiles.find(p => p.userId === userId);
 
         if (!profile) {
-            return message.reply("This user doesn't have an economy profile yet.");
+            return message.reply("This user doesn\'t have an economy profile yet.");
         }
 
         const rankedUsers = allProfiles
@@ -58,6 +58,7 @@ module.exports = {
         const netWorth = rankedUsers[userRank - 1].netWorth;
         const wallet = profile.wallet || 0;
         const bank = profile.bank || 0;
+        const gold = profile.gold || 0;
         const bankLimit = profile.bankLimit || 10000; // <<< Get bank limit, with a fallback
         const loanAmount = (typeof profile.loan === 'object' && typeof profile.loan.amount === 'number') ? profile.loan.amount : (typeof profile.loan === 'number' ? profile.loan : 0);
         const inventoryValue = (profile.inventory || []).reduce((total, item) => total + (item.purchasePrice || itemPrices[item.id] || 0), 0);
@@ -70,13 +71,13 @@ module.exports = {
         const xp = profile.xp || 0;
 
         const embed = new EmbedBuilder()
-            .setTitle(`**${targetUser.username}'s Economic Profile**`)
+            .setTitle(`**${targetUser.username}\'s Economic Profile**`)
             .setColor('#FFD700')
             .setThumbnail(targetUser.displayAvatarURL())
             .addFields(
                 { name: '👑 __**Wealth Rank**__', value: `**#${userRank}** out of ${totalUsers}` },
                 { name: '⭐ __**Experience**__', value: `**XP:** ${xp.toLocaleString()}` },
-                { name: '💰 __**Liquid Assets**__', value: `**Wallet:** $${wallet.toLocaleString()}\n**Bank:** $${bank.toLocaleString()} / $${bankLimit.toLocaleString()}` },
+                { name: '💰 __**Liquid Assets**__', value: `**Wallet:** $${wallet.toLocaleString()}\n**Bank:** $${bank.toLocaleString()} / $${bankLimit.toLocaleString()}\n**Gold:** ${gold.toLocaleString()}` },
                 { name: '📊 __**Investments**__', value: `**Total Value:** $${investmentsValue.toLocaleString()}` },
                 { name: '📦 __**Inventory**__', value: `**Total Value:** $${inventoryValue.toLocaleString()}` },
                 { name: '📉 __**Liabilities**__', value: `**Loan:** $${loanAmount.toLocaleString()}` },

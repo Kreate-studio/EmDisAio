@@ -8,7 +8,8 @@ async function createEconomyProfileIfNotExists(userId) {
             userId,
             wallet: 1,
             bank: 0,
-            bankLimit: 50000, // <<< Added default bank limit
+            bankLimit: 50000,
+            gold: 0,
             xp: 0,
             dailyStreak: 0,
             cooldowns: {},
@@ -28,8 +29,11 @@ async function createEconomyProfileIfNotExists(userId) {
         await economyCollection.insertOne(newProfile);
     } else {
         const updates = {};
-        if (typeof existingProfile.bankLimit !== 'number') { // <<< Check for existing bankLimit
+        if (typeof existingProfile.bankLimit !== 'number') {
             updates.bankLimit = 10000;
+        }
+        if (typeof existingProfile.gold !== 'number') { 
+            updates.gold = 0;
         }
         if (!existingProfile.bills || existingProfile.bills.unpaidRent !== undefined) {
             updates.bills = {
@@ -58,6 +62,11 @@ async function getEconomyProfile(userId) {
 async function updateWallet(userId, amount) {
     await createEconomyProfileIfNotExists(userId);
     return await economyCollection.updateOne({ userId }, { $inc: { wallet: amount } });
+}
+
+async function updateGold(userId, amount) {
+    await createEconomyProfileIfNotExists(userId);
+    return await economyCollection.updateOne({ userId }, { $inc: { gold: amount } });
 }
 
 async function updateXP(userId, amount) {
@@ -134,6 +143,7 @@ module.exports = {
     getAllEconomyProfiles,
     updateEconomyProfile,
     updateWallet,
+    updateGold,
     updateXP,
     updateCooldown,
     takeLoan,
