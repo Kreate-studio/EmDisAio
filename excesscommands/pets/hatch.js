@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
-const Pet = require('../../models/pets/pets');
-const Egg = require('../../models/pets/eggs');
+const { Pet } = require('../../models/pets/pets');
+const { Egg } = require('../../models/pets/eggs');
 const species = require('../../models/pets/species');
 const rarityColors = require('../../utils/rarityColors');
 

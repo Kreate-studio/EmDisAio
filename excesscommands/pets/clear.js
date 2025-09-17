@@ -1,6 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const Pet = require('../../models/pets/pets.js');
-const User = require('../../models/users.js');
+const { Pet } = require('../../models/pets/pets.js');
+const { User } = require('../../models/users.js');
 
 module.exports = {
     name: 'clear',

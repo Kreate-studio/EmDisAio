@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
-const Event = require('../../models/pets/events');
-const Pet = require('../../models/pets/pets');
+const { Event } = require('../../models/pets/events');
+const { Pet } = require('../../models/pets/pets');
 
 module.exports = {
     name: 'event-attack',

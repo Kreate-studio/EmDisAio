@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const { getEconomyProfile, updateEconomyProfile } = require('../../models/economy');
-const Egg = require('../../models/pets/eggs');
+const { Egg } = require('../../models/pets/eggs');
 
 module.exports = {
     name: 'buy-egg',

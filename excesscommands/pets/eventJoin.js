@@ -1,4 +1,4 @@
-const Event = require('../../models/pets/events');
+const { Event } = require('../../models/pets/events');
 
 module.exports = {
     name: 'event-join',

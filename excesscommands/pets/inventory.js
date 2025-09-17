@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const Pet = require('../../models/pets/pets');
+const { Pet } = require('../../models/pets/pets');
 
 module.exports = {
     name: 'inventory',

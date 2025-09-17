@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { getPet } = require('../../models/pets');
+const { getPet } = require('../../models/pets/pets');
 const { rarityColors } = require('../../utils/rarityColors');
 
 module.exports = {

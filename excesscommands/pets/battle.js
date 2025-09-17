@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
-const Pet = require('../../models/pets/pets');
-const GuildSettings = require('../../models/guild/GuildSettings');
+const { Pet } = require('../../models/pets/pets');
+const { GuildSettings } = require('../../models/guild/GuildSettings');
 const rarityColors = require('../../utils/rarityColors');
 
 // In-memory store for active battles

@@ -30,4 +30,10 @@ const petSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = model('Pet', petSchema);
+const Pet = model('Pet', petSchema);
+
+async function getPet(userId) {
+    return Pet.find({ ownerId: userId });
+}
+
+module.exports = { Pet, getPet };
