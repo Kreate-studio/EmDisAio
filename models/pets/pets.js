@@ -18,7 +18,8 @@ const petSchema = new Schema({
     happiness: { type: Number, default: 100 },
     energy: { type: Number, default: 100 },
   },
-  abilities: [String],
+  abilities: [Object],
+  specialAbilities: [Object],
   battleRecord: {
     wins: { type: Number, default: 0 },
     losses: { type: Number, default: 0 },

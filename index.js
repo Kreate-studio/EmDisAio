@@ -105,6 +105,15 @@ const loadEventHandlers = () => {
     require('./shiva');
     console.log(`\n${colors.magenta}${colors.bright}🎵 DISTUBE SYSTEM${colors.reset}`);
     require('./handlers/distube')(client);
+
+    console.log(`\n${colors.magenta}${colors.bright}⏰ SCHEDULERS${colors.reset}`);
+    console.log('─'.repeat(40));
+    const bossSpawnScheduler = require('./schedulers/boss-spawn.js');
+    bossSpawnScheduler(client);
+    logSystem('BOSS SPAWN');
+    const statDecayScheduler = require('./schedulers/statDecay.js');
+    statDecayScheduler(client);
+    logSystem('PET STAT DECAY');
    
     console.log('\n' + '═'.repeat(60));
     console.log(`${colors.green}${colors.bright}             ✨ ALL SYSTEMS INITIALIZED ✨${colors.reset}`);
