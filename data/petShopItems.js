@@ -87,6 +87,17 @@ module.exports = {
             category: 'Pet Supplies',
             type: 'consumable',
             stackable: true
+        },
+        {
+            id: 'pet_medicine_pack',
+            name: 'Pet Medicine Pack (5)',
+            price: 1,
+            currency: 'gold',
+            description: 'A pack of 5 doses of medicine to heal your pet.',
+            image: 'https://i.imgur.com/7Z4Z1Yx.png',
+            category: 'Pet Supplies',
+            type: 'consumable',
+            stackable: true
         }
     ],
     "Pet Toys": [

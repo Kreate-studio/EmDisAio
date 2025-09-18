@@ -1,7 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
+const { getEconomyProfile, removeFromInventory } = require('../../models/economy');
 const { Pet } = require('../../models/pets/pets');
-const { Egg } = require('../../models/pets/eggs');
-const species = require('../../models/pets/species');
+const species = require('../../data/pets');
 const rarityColors = require('../../utils/rarityColors');
 
 module.exports = {
@@ -16,7 +16,9 @@ module.exports = {
             return message.reply({ embeds: [embed] });
         }
 
-        const egg = await Egg.findOne({ ownerId: message.author.id, name: eggName });
+        const profile = await getEconomyProfile(message.author.id);
+        const egg = profile.inventory.find(item => item.type === 'egg' && item.name.toLowerCase() === eggName.toLowerCase());
+
         if (!egg) {
             const embed = new EmbedBuilder()
                 .setColor('#ff0000')
@@ -43,18 +45,19 @@ module.exports = {
             level: 1,
             xp: 0,
             nextLevelXP: 100,
-            hp: 100,
-            attack: 10,
-            defense: 10,
-            speed: 10,
-            happiness: 50,
-            lastFed: new Date(),
-            lastPlayed: new Date(),
-            lastRested: new Date()
+            stats: {
+                maxHealth: 100,
+                hp: 100,
+                attack: 10,
+                defense: 10,
+                speed: 10,
+                happiness: 50,
+                hunger: 100
+            },
         });
 
         await pet.save();
-        await Egg.deleteOne({ _id: egg._id });
+        await removeFromInventory(message.author.id, egg.uniqueId);
 
         const embed = new EmbedBuilder()
             .setColor(rarityColors[pet.rarity.toLowerCase()] || rarityColors.common)

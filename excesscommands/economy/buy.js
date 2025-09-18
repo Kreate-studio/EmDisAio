@@ -22,11 +22,16 @@ async function processPurchase(interaction, userId, profile, item, quantity, tot
             for (let i = 0; i < 10 * quantity; i++) {
                 await addToInventory(userId, { id: 'pet_toy', name: 'Pet Toy', type: 'consumable', uniqueId: uuidv4() });
             }
+        } else if (item.id === 'pet_medicine_pack') {
+            for (let i = 0; i < 5 * quantity; i++) {
+                await addToInventory(userId, { id: 'pet_medicine', name: 'Pet Medicine', type: 'consumable', uniqueId: uuidv4() });
+            }
         } else {
             const itemData = {
                 id: item.id,
                 name: item.name,
                 type: item.type,
+                rarity: item.rarity, // Include rarity for eggs
                 purchaseDate: new Date(),
                 purchasePrice: item.price,
                 uniqueId: uuidv4()
@@ -76,6 +81,10 @@ module.exports = {
 
         if (!item) {
             return message.reply(`We couldn\'t find an item with the ID \`${itemId}\`.`);
+        }
+
+        if (item.price === null) {
+            return message.reply('This item cannot be purchased from the shop.');
         }
 
         if (quantity > 1 && !item.stackable) {

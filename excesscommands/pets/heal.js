@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
-const { getEconomyProfile } = require('../../models/economy');
-const Pet = require('../../models/pets/pets');
+const { getEconomyProfile, removeFromInventory } = require('../../models/economy');
+const { Pet } = require('../../models/pets/pets');
 
 module.exports = {
     name: 'heal',
@@ -20,6 +20,10 @@ module.exports = {
             return message.reply(`You don\'t own a pet named ${petName}.`);
         }
 
+        if (pet.stats.hp === pet.stats.maxHealth) {
+            return message.reply(`${pet.name} already has full health.`);
+        }
+
         const medicineItem = profile.inventory.find(item => item.id === 'pet_medicine');
 
         if (!medicineItem) {
@@ -27,17 +31,15 @@ module.exports = {
         }
 
         // Consume one pet medicine
-        const itemIndex = profile.inventory.findIndex(item => item.id === 'pet_medicine');
-        profile.inventory.splice(itemIndex, 1);
-        await profile.save();
+        await removeFromInventory(userId, medicineItem.uniqueId);
 
         // Increase pet\'s HP
-        pet.stats.hp = Math.min(100, pet.stats.hp + 25);
+        pet.stats.hp = Math.min(pet.stats.maxHealth, pet.stats.hp + 25);
         await pet.save();
 
         const embed = new EmbedBuilder()
             .setTitle(`${pet.name} has been healed!`)
-            .setDescription(`${pet.name}\'s HP is now ${pet.stats.hp}/100.`)
+            .setDescription(`${pet.name}\'s HP is now ${pet.stats.hp}/${pet.stats.maxHealth}.`)
             .setColor('#00FF00');
 
         message.reply({ embeds: [embed] });

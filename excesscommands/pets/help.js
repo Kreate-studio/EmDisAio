@@ -44,9 +44,7 @@ module.exports = {
                 },
                 {
                     name: '🎉 World Events',
-                    value: '\`$pet event\` - View the current world event.\n' +
-                           '\`$pet event join\` - Join the ongoing event.\n' +
-                           '\`$pet event attack\` - Attack the event boss.',
+                    value: '\`$pet event\` - View the current world event.',
                     inline: false
                 }
             );
