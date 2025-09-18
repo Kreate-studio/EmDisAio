@@ -1,7 +1,8 @@
 const pets = require('./pets');
+const allPets = Object.values(pets).flat();
 
 module.exports = {
-    "Pets": pets,
+    "Pets": allPets,
     "Pet Eggs": [
         {
             id: 'common_egg',

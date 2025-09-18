@@ -150,7 +150,7 @@ module.exports = {
                 return message.reply('You cannot battle a bot or yourself.');
             }
             
-            const challengerPetName = args.join(' ').replace(/<@!?\\d+>/g, '').trim();
+            const challengerPetName = args.filter(arg => !arg.startsWith('<@')).join(' ');
 
             if (!challengerPetName) {
                 return message.reply('Usage: `$pet battle @user <your-pet-name>`');
@@ -217,7 +217,7 @@ module.exports = {
                     const startEmbed = new EmbedBuilder()
                         .setTitle('🔥 The Battle Begins! 🔥')
                         .setDescription(battleStartMessage)
-                        .setColor('#FF0000');
+                        .setColor('#FF0000');you 
                     await battleChannel.send({ embeds: [startEmbed] });
 
                 } else {

@@ -23,7 +23,7 @@ module.exports = {
     name: 'info',
     description: 'Get detailed information about one of your pets.',
     async execute(message, args) {
-        const petName = args[0];
+        const petName = args.join(' ');
         if (!petName) {
             return message.reply('Please specify the name of the pet you want to see.');
         }

@@ -7,7 +7,7 @@ module.exports = {
     description: 'Feed your pet to restore its hunger.',
     async execute(message, args) {
         const userId = message.author.id;
-        const petName = args[0];
+        const petName = args.join(' ');
 
         if (!petName) {
             return message.reply('Please specify which pet you want to feed.');

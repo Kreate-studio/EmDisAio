@@ -5,10 +5,10 @@ const allItems = require('../../data/petShopItems');
 const allPets = require('../../data/pets');
 const { v4: uuidv4 } = require('uuid');
 
-const allPossibleItems = [...Object.values(allItems).flat(), ...allPets];
+const allPossibleItems = [...Object.values(allItems).flat(), ...Object.values(allPets).flat()];
 
 module.exports = {
-    name: 'givepet',
+    name: 'give',
     description: 'Give a pet, egg, or item to a user.',
     aliases: ['gp'],
     async execute(message, args) {
@@ -21,6 +21,7 @@ module.exports = {
             return message.reply({ content: 'Please mention a user to give an item to.', ephemeral: true });
         }
 
+        const receiverId = targetUser.id;
         const itemName = args.slice(1).join(' ');
         if (!itemName) {
             return message.reply({ content: 'Please specify an item to give.', ephemeral: true });
@@ -31,8 +32,6 @@ module.exports = {
             return message.reply({ content: `Could not find an item named "${itemName}".`, ephemeral: true });
         }
 
-        const receiverId = targetUser.id;
-
         if (item.type === 'pet') {
             const newPet = new Pet({
                 petId: uuidv4(),
@@ -40,8 +39,10 @@ module.exports = {
                 name: item.name,
                 species: item.species,
                 rarity: item.rarity,
+                image: item.image,
                 stats: {
                     hp: 100,
+                    maxHealth: 100,
                     attack: item.stats.attack,
                     defense: item.stats.defense,
                     speed: item.stats.speed,
@@ -59,8 +60,11 @@ module.exports = {
                 id: item.id,
                 name: item.name,
                 type: item.type,
+                rarity: item.rarity,
+                image: item.image,
                 purchaseDate: new Date(),
-                purchasePrice: 0
+                purchasePrice: 0,
+                uniqueId: uuidv4()
             };
             await addToInventory(receiverId, itemData);
             return message.reply(`You have given **1x ${item.name}** to **${targetUser.username}**.`);

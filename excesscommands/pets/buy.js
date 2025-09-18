@@ -5,7 +5,7 @@ const allItems = require('../../data/petShopItems');
 const allPets = require('../../data/pets');
 const { v4: uuidv4 } = require('uuid');
 
-const allPossibleItems = [...Object.values(allItems).flat(), ...allPets];
+const allPossibleItems = [...Object.values(allItems).flat(), ...Object.values(allPets).flat()];
 
 async function handlePetPurchase(user, item) {
     const userId = user.id;
@@ -37,9 +37,10 @@ async function handlePetPurchase(user, item) {
         name: item.name,
         species: item.species,
         rarity: item.rarity,
-        image: item.image, // <-- This was missing
+        image: item.image,
         stats: {
             hp: 100,
+            maxHealth: 100,
             attack: item.stats.attack,
             defense: item.stats.defense,
             speed: item.stats.speed,
@@ -85,8 +86,11 @@ async function handleItemPurchase(user, item) {
         id: item.id, 
         name: item.name, 
         type: item.type, 
+        rarity: item.rarity,
+        image: item.image, // Add image to the item data
         purchaseDate: new Date(),
-        purchasePrice: item.price
+        purchasePrice: item.price,
+        uniqueId: uuidv4()
     };
     await addToInventory(userId, itemData);
 }

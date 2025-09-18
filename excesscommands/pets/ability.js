@@ -53,7 +53,7 @@ module.exports = {
     name: 'ability',
     description: "Displays detailed information about a pet's abilities.",
     async execute(message, args) {
-        const petName = args[0];
+        const petName = args.join(' ');
         if (!petName) {
             return message.reply('Please specify a pet name. Usage: `$pet ability <pet-name>`');
         }
@@ -61,7 +61,7 @@ module.exports = {
         const pet = await Pet.findOne({ ownerId: message.author.id, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
 
         if (!pet) {
-            return message.reply(`You do not own a pet named "${petName}".`);
+            return message.reply(`You do not own a pet named \"${petName}\".`);
         }
 
         const embed = new EmbedBuilder()

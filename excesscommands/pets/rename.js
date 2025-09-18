@@ -6,13 +6,13 @@ module.exports = {
     name: 'rename',
     description: 'Renames one of your pets.',
     async execute(message, args) {
-        const oldName = args[0];
-        const newName = args[1];
+        const combinedArgs = args.join(' ');
+        const [oldName, newName] = combinedArgs.split(',').map(name => name.trim());
 
         if (!oldName || !newName) {
             const embed = new EmbedBuilder()
                 .setColor('#ff0000')
-                .setDescription('Usage: `$pet rename <oldName> <newName>`');
+                .setDescription('Usage: `$pet rename <old name>, <new name>`');
             return message.reply({ embeds: [embed] });
         }
 
@@ -21,7 +21,7 @@ module.exports = {
         if (!pet) {
             const embed = new EmbedBuilder()
                 .setColor('#ff0000')
-                .setDescription(`You don't own a pet named "${oldName}".`);
+                .setDescription(`You don\'t own a pet named "${oldName}".`);
             return message.reply({ embeds: [embed] });
         }
         const oldPetName = pet.name;

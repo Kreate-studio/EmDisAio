@@ -7,7 +7,7 @@ module.exports = {
     description: 'Evolve your pet to its next stage.',
     async execute(message, args) {
         const userId = message.author.id;
-        const petName = args[0];
+        const petName = args.join(' ');
 
         if (!petName) {
             return message.reply('Please specify which pet you want to evolve.');

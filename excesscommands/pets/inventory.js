@@ -4,7 +4,7 @@ const { Pet } = require('../../models/pets/pets');
 module.exports = {
     name: 'inventory',
     description: "Displays your collection of pets.",
-    aliases: ['inv'],
+    aliases: ['inv', 'flex', 'list'],
 
     async execute(message, args) {
         const userId = message.author.id;
@@ -22,7 +22,7 @@ module.exports = {
             const status = pet.isDead ? '💀 Dead' : '💖 Alive';
             embed.addFields({
                 name: `${pet.name} (${pet.species})`,
-                value: `**Rarity:** ${pet.rarity}\n**Level:** ${pet.level}\n**Status:** ${status}`
+                value: `**Rarity:** ${pet.rarity}\n**Level:** ${pet.level}\n**Status:** ${status}${pet.image ? `\n[Image](${pet.image})` : ''}`
             });
         }
 

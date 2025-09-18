@@ -6,7 +6,7 @@ module.exports = {
     description: 'Train your pet to gain XP and level up.',
     async execute(message, args) {
         const userId = message.author.id;
-        const petName = args[0];
+        const petName = args.join(' ');
 
         if (!petName) {
             return message.reply('Please specify which pet you want to train.');

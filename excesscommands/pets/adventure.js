@@ -7,7 +7,7 @@ module.exports = {
     description: 'Send your pet on an adventure to gain XP and find items.',
     async execute(message, args) {
         const userId = message.author.id;
-        const petName = args[0];
+        const petName = args.join(' ');
 
         if (!petName) {
             return message.reply('Please specify which pet you want to send on an adventure.');

@@ -12,6 +12,7 @@ const petSchema = new Schema({
   ageHours: { type: Number, default: 0 },
   stats: {
     hp: { type: Number, default: 100 },
+    maxHealth: { type: Number, default: 100 }, // Added maxHealth
     attack: { type: Number, default: 10 },
     defense: { type: Number, default: 10 },
     speed: { type: Number, default: 10 },
