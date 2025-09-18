@@ -83,7 +83,7 @@ module.exports = {
             price: 1,
             currency: 'gold',
             description: 'A pack of 10 nutritious pet food bags.',
-            image: 'https://i.imgur.com/1j4tY3J.png',
+            image: 'https://i.ibb.co/HTNsNsN5/food.png',
             category: 'Pet Supplies',
             type: 'consumable',
             stackable: true
@@ -94,7 +94,7 @@ module.exports = {
             price: 1,
             currency: 'gold',
             description: 'A pack of 5 doses of medicine to heal your pet.',
-            image: 'https://i.imgur.com/7Z4Z1Yx.png',
+            image: 'https://i.ibb.co/zWyVSFnR/med.png',
             category: 'Pet Supplies',
             type: 'consumable',
             stackable: true
