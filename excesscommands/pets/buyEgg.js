@@ -3,7 +3,7 @@ const { getEconomyProfile, updateEconomyProfile } = require('../../models/econom
 const { Egg } = require('../../models/pets/eggs');
 
 module.exports = {
-    name: 'buy-egg',
+    name: 'buyegg',
     description: 'Buy a pet egg from the shop.',
     async execute(message, args) {
         const userId = message.author.id;

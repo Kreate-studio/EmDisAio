@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const Pet = require('../../models/pets/pets');
+const { Pet } = require('../../models/pets/pets');
 const rarityColors = require('../../utils/rarityColors');
 
 module.exports = {
@@ -21,17 +21,16 @@ module.exports = {
         if (!pet) {
             const embed = new EmbedBuilder()
                 .setColor('#ff0000')
-                .setDescription(`You don\'t own a pet named "${oldName}".`);
+                .setDescription(`You don't own a pet named "${oldName}".`);
             return message.reply({ embeds: [embed] });
         }
-
         const oldPetName = pet.name;
         pet.name = newName;
         await pet.save();
 
         const embed = new EmbedBuilder()
             .setColor(rarityColors[pet.rarity.toLowerCase()] || rarityColors.common)
-            .setDescription(`🏷️ Your pet **${oldPetName}** has been renamed to **${newName}**!`);
+            .setDescription(`🏷️ Your pet **${oldPetName}** has been renamed to **${newName}**!`)
 
         message.reply({ embeds: [embed] });
     },

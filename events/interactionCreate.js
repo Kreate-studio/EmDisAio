@@ -1,9 +1,8 @@
 const fs = require('fs');
 const path = require('path');
-const { categories } = require('../config.json');
 const lang = require('./loadLanguage');
 const client = require('../main');
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } = require('discord.js');
 const VerificationConfig = require('../models/gateVerification/verificationConfig');
 const verificationCodes = new Map();
 const SuggestionVote = require('../models/suggestions/SuggestionVote');
@@ -12,81 +11,19 @@ const dares = require('../data/truthordare/dare.json');
 const nsfwTruths = require('../data/truthordare/nsfw_truth.json');
 const nsfwDares = require('../data/truthordare/nsfw_dare.json');
 const DisabledCommand = require('../models/commands/DisabledCommands');
-const Event = require('../models/pets/events');
-const GuildSettings = require('../models/guild/GuildSettings');
-const Pet = require('../models/pets/pets');
-const { updateGold } = require('../models/economy');
-const { startBattle } = require('../battles/fight');
 
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
+        // If the interaction is part of the new boss system, ignore it. 
+        // It will be handled by the collector in spawn-boss.js
+        if (interaction.customId && interaction.customId.startsWith('boss-')) {
+            return;
+        }
+
         // 🟣 Button Logic
         if (interaction.isButton()) {
             const { customId, user } = interaction;
-
-            // Handle Boss Fight Join
-            if (customId.startsWith('join_boss_')) {
-                const eventId = customId.split('_')[2];
-                const event = await Event.findById(eventId);
-                const guildSettings = await GuildSettings.findOne({ guildId: interaction.guild.id });
-
-                if (!event) {
-                    return interaction.reply({ content: 'This boss fight is no longer available.', ephemeral: true });
-                }
-
-                if (event.participants.has(user.id)) {
-                    return interaction.reply({ content: 'You have already joined this fight.', ephemeral: true });
-                }
-
-                event.participants.set(user.id, { damage: 0 });
-                await event.save();
-
-                const minParticipants = event.isTest ? 1 : guildSettings.minBossParticipants;
-
-                const participantsList = Array.from(event.participants.keys()).map(userId => `<@${userId}>`).join('\n');
-                const embed = EmbedBuilder.from(interaction.message.embeds[0])
-                    .setDescription(`A fearsome **${event.name}** has spawned! It has **${event.bossHp}** HP.\n\n**Participants (${event.participants.size}/${minParticipants}):**\n${participantsList}`);
-
-                await interaction.update({ embeds: [embed] });
-
-                // Check if the fight can start
-                if (event.participants.size >= minParticipants) {
-                    // Create a public thread for the battle
-                    const thread = await interaction.channel.threads.create({
-                        name: `⚔️ ${event.name} Battle`,
-                        autoArchiveDuration: 60,
-                        startMessage: interaction.message,
-                        type: ChannelType.PublicThread,
-                        reason: 'Boss battle started',
-                    });
-
-                    // Add participants to the thread
-                    const participants = Array.from(event.participants.keys());
-                    for (const userId of participants) {
-                        const member = await interaction.guild.members.fetch(userId).catch(() => null);
-                        if (member) {
-                            await thread.members.add(member);
-                        }
-                    }
-
-                    await interaction.channel.send(`The battle against **${event.name}** has begun in the thread!`);
-
-                    await startBattle(thread, event, participants, interaction);
-
-                    // Clean up the event and disable the original message button
-                    await Event.findByIdAndDelete(eventId);
-                    const disabledButtons = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(customId)
-                            .setLabel('Fight Over')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setDisabled(true)
-                    );
-                    await interaction.message.edit({ components: [disabledButtons] });
-                }
-                return;
-            }
 
             // Handle Button Interactions (Verification Button)
             if (interaction.customId === 'verify_button') {
@@ -124,7 +61,7 @@ module.exports = {
             }
             if (customId.startsWith('nsfw_tod_')) {
                 if (!interaction.channel.nsfw) {
-                    return interaction.reply({ content: 'This command can only be used in NSFW channels.', ephemeral: true });
+                    return interaction.reply({ content: 'This command can only be used in NSFW channels.', flags: [MessageFlags.Ephemeral] });
                 }
                 await interaction.deferUpdate();
 
@@ -167,9 +104,14 @@ module.exports = {
                     await interaction.update({ embeds: [embed] });
                 } catch (err) {
                     console.error('❌ Error handling suggestion vote:', err);
-                    await interaction.reply({ content: '⚠️ Could not register your vote. Please try again later.', ephemeral: true });
+                    await interaction.reply({ content: '⚠️ Could not register your vote. Please try again later.', flags: [MessageFlags.Ephemeral] });
                 }
             }
+        }
+        // Handle String Select Menus
+        else if (interaction.isStringSelectMenu()) {
+            // This block can be expanded for other select menu interactions in the future
+            // For now, it does nothing, preventing conflicts with the boss spawner.
         }
         // Handle Modal Submissions
         else if (interaction.isModalSubmit()) {
@@ -179,7 +121,7 @@ module.exports = {
                 const correctCode = verificationCodes.get(userId);
 
                 if (!correctCode || userInput !== correctCode) {
-                    return interaction.reply({ content: 'Verification failed! Try again.', ephemeral: true });
+                    return interaction.reply({ content: 'Verification failed! Try again.', flags: [MessageFlags.Ephemeral] });
                 }
 
                 const config = await VerificationConfig.findOne({ guildId: interaction.guild.id });
@@ -187,7 +129,7 @@ module.exports = {
 
                 const member = interaction.guild.members.cache.get(userId);
                 const verifiedRole = interaction.guild.roles.cache.get(config.verifiedRoleId);
-                if (!verifiedRole) return interaction.reply({ content: '⚠️ Verified role not found.', ephemeral: true });
+                if (!verifiedRole) return interaction.reply({ content: '⚠️ Verified role not found.', flags: [MessageFlags.Ephemeral] });
 
                 const unverifiedRole = interaction.guild.roles.cache.get(config.unverifiedRoleId);
                 if (unverifiedRole) {
@@ -196,7 +138,7 @@ module.exports = {
                 await member.roles.add(verifiedRole);
                 verificationCodes.delete(userId);
 
-                await interaction.reply({ content: '✅ Verification successful! You now have access to the server.', ephemeral: true });
+                await interaction.reply({ content: '✅ Verification successful! You now have access to the server.', flags: [MessageFlags.Ephemeral] });
             }
         }
         // Handle Slash Commands
@@ -212,7 +154,7 @@ module.exports = {
             });
 
             if (isDisabled) {
-                return interaction.reply({ content: `❌ This command is disabled in this server.`, ephemeral: true });
+                return interaction.reply({ content: `❌ This command is disabled in this server.`, flags: [MessageFlags.Ephemeral] });
             }
 
             try {
@@ -220,9 +162,9 @@ module.exports = {
             } catch (error) {
                 console.error(error);
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+                    await interaction.followUp({ content: 'There was an error while executing this command!', flags: [MessageFlags.Ephemeral] });
                 } else {
-                    await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                    await interaction.reply({ content: 'There was an error while executing this command!', flags: [MessageFlags.Ephemeral] });
                 }
             }
         }

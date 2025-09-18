@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { getEconomyProfile } = require('../../models/economy');
+const { getEconomyProfile, removeFromInventory } = require('../../models/economy');
 const { Pet } = require('../../models/pets/pets');
 
 module.exports = {
@@ -27,9 +27,7 @@ module.exports = {
         }
 
         // Consume one pet toy
-        const itemIndex = profile.inventory.findIndex(item => item.id === 'pet_toy');
-        profile.inventory.splice(itemIndex, 1);
-        await profile.save();
+        await removeFromInventory(userId, toyItem.uniqueId);
 
         // Increase pet\'s happiness
         pet.stats.happiness = Math.min(100, pet.stats.happiness + 20);

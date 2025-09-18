@@ -39,6 +39,7 @@ module.exports = {
             name: randomSpecies.name,
             species: randomSpecies.name,
             rarity: egg.rarity,
+            image: randomSpecies.image,
             level: 1,
             xp: 0,
             nextLevelXP: 100,

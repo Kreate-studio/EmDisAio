@@ -150,27 +150,23 @@ module.exports = {
                 return message.reply('You cannot battle a bot or yourself.');
             }
             
-            const petNames = args.join(' ').replace(/<@!?\\d+>/g, '').trim().split(',').map(name => name.trim());
-            const [challengerPetName, opponentPetName] = petNames;
+            const challengerPetName = args.join(' ').replace(/<@!?\\d+>/g, '').trim();
 
-            if (!challengerPetName || !opponentPetName) {
-                return message.reply('Usage: `$pet battle @user <your-pet-name>, <their-pet-name>`');
+            if (!challengerPetName) {
+                return message.reply('Usage: `$pet battle @user <your-pet-name>`');
             }
 
             const challengerPetDoc = await Pet.findOne({ ownerId: challenger.id, name: { $regex: new RegExp(`^${challengerPetName}$`, 'i') } });
-            const opponentPetDoc = await Pet.findOne({ ownerId: opponentUser.id, name: { $regex: new RegExp(`^${opponentPetName}$`, 'i') } });
 
             if (!challengerPetDoc) return message.reply(`You do not own a pet named '${challengerPetName}'.`);
-            if (!opponentPetDoc) return message.reply(`${opponentUser.username} does not own a pet named '${opponentPetName}'.`);
             if (challengerPetDoc.isDead) return message.reply(`Your pet, ${challengerPetDoc.name}, is defeated and cannot battle.`);
-            if (opponentPetDoc.isDead) return message.reply(`${opponentPetDoc.name} is defeated and cannot battle.`);
 
             const battleId = `${challenger.id}-${opponentUser.id}`;
             if (activeBattles.has(battleId)) return message.reply('You are already in a battle with this user.');
 
             const challengeEmbed = new EmbedBuilder()
                 .setTitle('⚔️ A Battle Challenge has been issued! ⚔️')
-                .setDescription(`${opponentUser.username}, ${challenger.username} challenges you to a battle!\\n\\n**${challengerPetDoc.name}** vs **${opponentPetDoc.name}**\\n\\nDo you accept? (yes/no)`)
+                .setDescription(`${opponentUser.username}, ${challenger.username} challenges you to a battle with **${challengerPetDoc.name}**.\\n\\nDo you accept? (yes/no)`)
                 .setColor('#FFD700');
             await message.channel.send({ content: `${opponentUser}`, embeds: [challengeEmbed] });
 
@@ -179,6 +175,19 @@ module.exports = {
                 const collected = await message.channel.awaitMessages({ filter, time: 60000, max: 1, errors: ['time'] });
                 if (collected.first().content.toLowerCase() === 'yes') {
                     
+                    await message.channel.send(`${opponentUser.username}, please choose your pet by typing its name.`);
+                    const petFilter = (response) => response.author.id === opponentUser.id;
+                    const petCollected = await message.channel.awaitMessages({ filter: petFilter, max: 1, time: 30000, errors: ['time'] });
+                    const opponentPetName = petCollected.first().content.trim();
+                    const opponentPetDoc = await Pet.findOne({ ownerId: opponentUser.id, name: { $regex: new RegExp(`^${opponentPetName}$`, 'i') } });
+
+                    if (!opponentPetDoc) {
+                        return message.channel.send(`You do not own a pet named '${opponentPetName}'. Battle cancelled.`);
+                    }
+                    if (opponentPetDoc.isDead) {
+                        return message.channel.send(`${opponentPetDoc.name} is defeated and cannot battle. Battle cancelled.`);
+                    }
+
                     const { pet: challengerBattlePet, effects: challengerEffects } = initializePetForBattle(challengerPetDoc);
                     const { pet: opponentBattlePet, effects: opponentEffects } = initializePetForBattle(opponentPetDoc);
                     
@@ -215,12 +224,12 @@ module.exports = {
                     await message.channel.send('The challenge was declined.');
                 }
             } catch (err) {
-                await message.channel.send('The challenge expired without a response.');
+                await message.channel.send('The challenge expired without a response or a pet was not chosen in time.');
             }
         } else if (battle) {
              message.reply(`You are already in a battle. Head to <#${battleChannelId}> to fight!`);
         } else {
-            message.reply('Invalid command.\\nTo start a battle: `$pet battle @user <your-pet-name>, <their-pet-name>`\\nTo fight: `$pet battle move <ability-name>`');
+            message.reply('Invalid command.\\nTo start a battle: `$pet battle @user <your-pet-name>`\\nTo fight: `$pet battle move <ability-name>`');
         }
     },
 };

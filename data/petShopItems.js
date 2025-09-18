@@ -78,11 +78,11 @@ module.exports = {
     ],
     "Pet Supplies": [
         {
-            id: 'pet_food',
-            name: 'Pet Food',
+            id: 'pet_food_pack',
+            name: 'Pet Food Pack (10)',
             price: 1,
             currency: 'gold',
-            description: 'A bag of nutritious pet food that will keep your pet healthy and happy.',
+            description: 'A pack of 10 nutritious pet food bags.',
             image: 'https://i.imgur.com/1j4tY3J.png',
             category: 'Pet Supplies',
             type: 'consumable',
@@ -91,34 +91,12 @@ module.exports = {
     ],
     "Pet Toys": [
         {
-            id: 'toy_mouse',
-            name: 'Toy Mouse',
-            price: 2,
+            id: 'pet_toy_pack',
+            name: 'Pet Toy Pack (10)',
+            price: 1,
             currency: 'gold',
-            description: 'A classic toy mouse that will keep your pet entertained for hours.',
-            image: 'https://i.ibb.co/5hKm5bV/toy-mouse.png',
-            category: 'Pet Toys',
-            type: 'consumable',
-            stackable: true
-        },
-        {
-            id: 'feather_wand',
-            name: 'Feather Wand',
-            price: 3,
-            currency: 'gold',
-            description: 'A fun and interactive feather wand that your pet will love to chase.',
-            image: 'https://i.ibb.co/tYHk0Vj/feather-wand.png',
-            category: 'Pet Toys',
-            type: 'consumable',
-            stackable: true
-        },
-        {
-            id: 'laser_pointer',
-            name: 'Laser Pointer',
-            price: 4,
-            currency: 'gold',
-            description: 'A laser pointer that will drive your pet wild with excitement.',
-            image: 'https://i.ibb.co/mSgM2vM/laser-pointer.png',
+            description: 'A pack of 10 assorted pet toys.',
+            image: 'https://i.ibb.co/zTLx6PxK/toy.png',
             category: 'Pet Toys',
             type: 'consumable',
             stackable: true

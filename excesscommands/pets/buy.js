@@ -37,6 +37,7 @@ async function handlePetPurchase(user, item) {
         name: item.name,
         species: item.species,
         rarity: item.rarity,
+        image: item.image, // <-- This was missing
         stats: {
             hp: 100,
             attack: item.stats.attack,
@@ -91,9 +92,8 @@ async function handleItemPurchase(user, item) {
 }
 
 module.exports = {
-    name: 'petbuy',
+    name: 'buy',
     description: 'Buy a pet, egg, or item from the shop.',
-    aliases: ['pb'],
     async execute(message, args) {
         const itemName = args.join(' ');
         if (!itemName) {

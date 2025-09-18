@@ -1,64 +1,58 @@
 const { EmbedBuilder } = require('discord.js');
-const Pet = require('../../models/pets/pets');
-const rarityColors = require('../../utils/rarityColors');
+const { Pet } = require('../../models/pets/pets');
+let rarityColors;
+try {
+    rarityColors = require('../../config').rarityColors;
+} catch (error) {
+    // It's okay if the file or property doesn't exist.
+}
 
-const getStatBar = (value, max, symbol) => {
-    const percentage = (value / max) * 100;
-    const filledCount = Math.round((percentage / 100) * 10);
-    const emptyCount = 10 - filledCount;
-    return `${symbol.repeat(filledCount)}${ '-'.repeat(emptyCount)} [${value}/${max}]`;
-};
-
+if (!rarityColors || Object.keys(rarityColors).length === 0) {
+    console.warn('Warning: `rarityColors` not found in `config.js` or is empty. Using default colors.');
+    rarityColors = {
+        common: '#FFFFFF',
+        rare: '#00FF00',
+        epic: '#9B30FF',
+        legendary: '#FFD700',
+        mythic: '#FF00FF',
+        exclusive: '#FF4500'
+    };
+}
 
 module.exports = {
     name: 'info',
-    description: 'Displays detailed information about one of your pets.',
+    description: 'Get detailed information about one of your pets.',
     async execute(message, args) {
         const petName = args[0];
         if (!petName) {
-            return message.reply('Please specify a pet name. Usage: `$pet info <pet-name>`');
+            return message.reply('Please specify the name of the pet you want to see.');
         }
 
-        const pet = await Pet.findOne({ ownerId: message.author.id, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
+        const pet = await Pet.findOne({ ownerId: message.author.id, name: petName });
 
         if (!pet) {
-            return message.reply(`You do not own a pet named "${petName}".`);
+            return message.reply(`You don\'t own a pet named ${petName}.`);
         }
+
+        const rarityColor = rarityColors[pet.rarity.toLowerCase()] || '#FFFFFF';
 
         const embed = new EmbedBuilder()
-            .setColor(rarityColors[pet.rarity.toLowerCase()] || '#FFFFFF')
-            .setTitle(`🐾 ${pet.name} - The ${pet.species} 🐾`)
-            .setThumbnail(pet.image || 'https://i.imgur.com/a/J4j4j4j.png') // Add a default image
+            .setTitle(`${pet.name} - Level ${pet.level}`)
+            .setColor(rarityColor)
+            .setImage(pet.image)
             .addFields(
-                { name: '🌟 Rarity', value: pet.rarity, inline: true },
-                { name: '📈 Level', value: `Lvl ${pet.level}`, inline: true },
-                { name: '✨ XP', value: `${pet.xp} / ${100 * pet.level ** 2}`, inline: true },
-                { name: '\n📊 Stats', value: '──────────' },
-                { name: '❤️ HP', value: getStatBar(pet.stats.hp, 100, '❤️'), inline: false },
-                { name: '⚔️ Attack', value: String(pet.stats.attack), inline: true },
-                { name: '🛡️ Defense', value: String(pet.stats.defense), inline: true },
-                { name: '💨 Speed', value: String(pet.stats.speed), inline: true },
-                { name: '\n💖 Well-being', value: '──────────' },
-                { name: '🍖 Hunger', value: getStatBar(pet.stats.hunger, 100, '🍖'), inline: false },
-                { name: '😊 Happiness', value: getStatBar(pet.stats.happiness, 100, '😊'), inline: false },
-                { name: '⚡ Energy', value: getStatBar(pet.stats.energy, 100, '⚡'), inline: false },
-                { name: '\n📋 Other Info', value: '──────────' },
-                { name: '⌛ Age', value: `${pet.ageHours} hours`, inline: true },
-                { name: '🏆 Wins', value: `${pet.battleRecord.wins}`, inline: true },
-                { name: '💀 Status', value: pet.isDead ? 'Defeated' : 'Ready', inline: true }
-            );
-
-        if (pet.abilities && pet.abilities.length > 0) {
-            const abilityNames = pet.abilities.map(a => a.name).join(', ');
-            embed.addFields({ name: '💥 Abilities', value: abilityNames });
-        }
-
-        if (pet.specialAbilities && pet.specialAbilities.length > 0) {
-            const specialAbilityText = pet.specialAbilities.map(sa => `**${sa.name}** (${sa.type})`).join('\n');
-            embed.addFields({ name: '✨ Special Abilities', value: specialAbilityText });
-        }
-        
-        embed.setFooter({ text: `ID: ${pet.petId} | Created: ${pet.createdAt.toDateString()}` });
+                { name: 'Rarity', value: pet.rarity, inline: true },
+                { name: 'Experience', value: `${pet.xp}/${pet.level * 100}`, inline: true },
+                { name: 'Status', value: pet.isDead ? 'Defeated' : 'Ready', inline: true },
+                { name: '\n❤️ Health', value: `${pet.stats.hp}/${pet.stats.maxHealth}`, inline: false },
+                { name: '⚔️ Attack', value: `${pet.stats.attack}`, inline: true },
+                { name: '🛡️ Defense', value: `${pet.stats.defense}`, inline: true },
+                { name: '⚡ Speed', value: `${pet.stats.speed}`, inline: true },
+                { name: '\n😊 Happiness', value: `${pet.stats.happiness}/100`, inline: true },
+                { name: '🍖 Hunger', value: `${pet.stats.hunger}/100`, inline: true },
+                { name: '⚡ Energy', value: `${pet.stats.energy}/100`, inline: true }
+            )
+            .setFooter({ text: `Owned by ${message.author.username}` });
 
         message.reply({ embeds: [embed] });
     },

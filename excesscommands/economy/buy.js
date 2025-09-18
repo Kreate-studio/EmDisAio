@@ -1,11 +1,12 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
-const { getEconomyProfile, updateWallet, addToInventory } = require('../../models/economy');
+const { getEconomyProfile, updateWallet, updateGold, addToInventory } = require('../../models/economy');
 const { shopItems } = require('../../data/shopItems');
+const { v4: uuidv4 } = require('uuid');
 
 const allItems = Object.values(shopItems).flat();
 const EXPENSIVE_ITEM_THRESHOLD = 20000; // Confirmation for purchases over this amount
 
-async function processPurchase(interaction, userId, profile, item, quantity, totalPrice) {
+async function processPurchase(interaction, userId, profile, item, quantity, totalPrice, currency) {
     try {
         // For non-stackable items, if the user tries to buy one they already have.
         if (!item.stackable && profile.inventory.some(i => i.id === item.id)) {
@@ -13,26 +14,38 @@ async function processPurchase(interaction, userId, profile, item, quantity, tot
         }
 
         // Add the item(s) to the user's inventory
-        const itemData = { 
-            id: item.id, 
-            name: item.name, 
-            type: item.type, 
-            purchaseDate: new Date(),
-            purchasePrice: item.price
-        };
-        
-        // For stackable items, add one entry per quantity.
-        // For non-stackable, quantity will be 1, so it runs once.
-        for (let i = 0; i < quantity; i++) {
-            await addToInventory(userId, itemData);
+        if (item.id === 'pet_food_pack') {
+            for (let i = 0; i < 10 * quantity; i++) {
+                await addToInventory(userId, { id: 'pet_food', name: 'Pet Food', type: 'consumable', uniqueId: uuidv4() });
+            }
+        } else if (item.id === 'pet_toy_pack') {
+            for (let i = 0; i < 10 * quantity; i++) {
+                await addToInventory(userId, { id: 'pet_toy', name: 'Pet Toy', type: 'consumable', uniqueId: uuidv4() });
+            }
+        } else {
+            const itemData = {
+                id: item.id,
+                name: item.name,
+                type: item.type,
+                purchaseDate: new Date(),
+                purchasePrice: item.price,
+                uniqueId: uuidv4()
+            };
+            for (let i = 0; i < quantity; i++) {
+                await addToInventory(userId, itemData);
+            }
         }
 
-        // Deduct money from wallet
-        await updateWallet(userId, -totalPrice);
+        // Deduct money from wallet or gold
+        if (currency === 'gold') {
+            await updateGold(userId, -totalPrice);
+        } else {
+            await updateWallet(userId, -totalPrice);
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('✅ Purchase Successful!')
-            .setDescription(`You have successfully purchased **${quantity}x ${item.name}** for **$${totalPrice.toLocaleString()}**.`) 
+            .setDescription(`You have successfully purchased **${quantity}x ${item.name}** for **${currency === 'gold' ? 'G': '$'}${totalPrice.toLocaleString()}**.`) 
             .setColor('#2ECC71');
 
         await interaction.update({ embeds: [embed], components: [] });
@@ -72,13 +85,14 @@ module.exports = {
         const userId = message.author.id;
         const profile = await getEconomyProfile(userId);
         const totalPrice = item.price * quantity;
+        const currency = item.currency || 'wallet';
 
-        if (profile.wallet < totalPrice) {
-            return message.reply(`You don\'t have enough money. You need **$${totalPrice.toLocaleString()}**, but you only have **$${profile.wallet.toLocaleString()}**.`);
+        if ((currency === 'gold' && profile.gold < totalPrice) || (currency === 'wallet' && profile.wallet < totalPrice)) {
+            return message.reply(`You don\'t have enough ${currency}. You need **${currency === 'gold' ? 'G': '$'}${totalPrice.toLocaleString()}**, but you only have **${currency === 'gold' ? 'G': '$'}${profile[currency].toLocaleString()}**.`);
         }
 
         // Confirmation for expensive items
-        if (totalPrice >= EXPENSIVE_ITEM_THRESHOLD) {
+        if (totalPrice >= EXPENSIVE_ITEM_THRESHOLD && currency === 'wallet') {
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('confirm_purchase').setLabel('Confirm').setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId('cancel_purchase').setLabel('Cancel').setStyle(ButtonStyle.Danger)
@@ -98,7 +112,7 @@ module.exports = {
                 }
 
                 if (interaction.customId === 'confirm_purchase') {
-                    await processPurchase(interaction, userId, profile, item, quantity, totalPrice);
+                    await processPurchase(interaction, userId, profile, item, quantity, totalPrice, currency);
                 } else {
                     await interaction.update({ content: 'Purchase canceled.', components: [] });
                 }
@@ -112,7 +126,7 @@ module.exports = {
             });
 
         } else {
-            // Auto-confirm for cheaper items (using a mock interaction)
+            // Auto-confirm for cheaper items or gold purchases
             const mockInteraction = { 
                 update: async (options) => { 
                     if (options.embeds) { 
@@ -122,7 +136,7 @@ module.exports = {
                     }
                 } 
             };
-            await processPurchase(mockInteraction, userId, profile, item, quantity, totalPrice);
+            await processPurchase(mockInteraction, userId, profile, item, quantity, totalPrice, currency);
         }
     },
 };

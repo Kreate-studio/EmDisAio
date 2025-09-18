@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const Pet = require('../../models/pets/pets');
+const { Pet } = require('../../models/pets/pets');
 const Species = require('../../models/pets/species');
 
 module.exports = {
@@ -55,6 +55,11 @@ module.exports = {
         pet.stats.attack = newSpecies.baseStats.attack;
         pet.stats.defense = newSpecies.baseStats.defense;
         pet.stats.speed = newSpecies.baseStats.speed;
+
+        // Update abilities
+        if (newSpecies.abilities && newSpecies.abilities.length > 0) {
+            pet.abilities = newSpecies.abilities.map(abilityName => ({ name: abilityName }));
+        }
 
         await pet.save();
 

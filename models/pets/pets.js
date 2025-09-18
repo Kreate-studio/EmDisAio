@@ -6,6 +6,7 @@ const petSchema = new Schema({
   name: { type: String, required: true },
   species: { type: String, required: true },
   rarity: { type: String, required: true },
+  image: { type: String },
   level: { type: Number, default: 1 },
   xp: { type: Number, default: 0 },
   ageHours: { type: Number, default: 0 },
