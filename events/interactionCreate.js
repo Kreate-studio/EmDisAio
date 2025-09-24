@@ -15,14 +15,13 @@ const DisabledCommand = require('../models/commands/DisabledCommands');
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
-        // If the interaction is part of the new boss system, ignore it. 
-        // It will be handled by the collector in spawn-boss.js
-        if (interaction.customId && interaction.customId.startsWith('boss-')) {
-            return;
-        }
 
         // 🟣 Button Logic
         if (interaction.isButton()) {
+             // If the interaction is part of the new boss system, ignore it.
+            if (interaction.customId && interaction.customId.startsWith('boss-')) {
+                return;
+            }
             const { customId, user } = interaction;
 
             // Handle Button Interactions (Verification Button)
@@ -110,11 +109,15 @@ module.exports = {
         }
         // Handle String Select Menus
         else if (interaction.isStringSelectMenu()) {
-            // This block can be expanded for other select menu interactions in the future
-            // For now, it does nothing, preventing conflicts with the boss spawner.
+            if (interaction.customId && interaction.customId.startsWith('boss-')) {
+                return;
+            }
         }
         // Handle Modal Submissions
         else if (interaction.isModalSubmit()) {
+             if (interaction.customId && interaction.customId.startsWith('boss-')) {
+                return;
+            }
             if (interaction.customId === 'verify_modal') {
                 const userId = interaction.user.id;
                 const userInput = interaction.fields.getTextInputValue('verify_input');

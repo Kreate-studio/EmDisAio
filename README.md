@@ -1,112 +1,86 @@
-![Animated Background](https://i.imgur.com/ECZKmlO.gif)
+# AIO - All-In-One Discord Bot
 
-<h1 align="center" style="font-family: Arial, sans-serif; color: #FF6F61; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
-  ALL IN ONE BOT 1.2.2
-</h1>
+AIO is a powerful and versatile Discord bot built with Node.js and the Discord.js library. It offers a wide range of features to enhance your Discord server, from moderation and fun commands to music, economy, and more.
 
-<p align="center">
-  <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square&logo=opensource"
-      alt="License: MIT" />
-  </a>
+## Features
 
-  <a href="https://www.paypal.me/@GlaceYT">
-    <img src="https://img.shields.io/badge/Donate-PayPal-0079C1?style=flat-square&logo=paypal"
-      alt="Donate" />
-  </a>
-</p>
+AIO is packed with features to make your Discord server more engaging and manageable. Here's a breakdown of the available command categories:
 
-<p align="center">
-  <a href="https://www.youtube.com/channel/@GlaceYT">
-    <img src="https://img.shields.io/badge/YouTube-Subscribe-red?style=flat-square&logo=youtube"
-      alt="YouTube" />
-  </a>
+### **Core**
+- **applications:** Manage applications for roles or positions on your server.
+- **autoresponder:** Set up automatic responses to specific words or phrases.
+- **birthday:** Wish your server members a happy birthday.
+- **customcommands:** Create your own custom commands.
+- **epic:** Get information about games from the Epic Games Store.
+- **level:** A leveling system to reward active members.
+- **riot:** Get information about Riot Games accounts.
+- **steam:** Get information about Steam accounts.
 
-  <a href="https://discord.gg/67gme8db96">
-    <img src="https://img.shields.io/badge/Discord-Join-blue?style=flat-square&logo=discord"
-      alt="Join Discord" />
-  </a>
+### **Fun**
+- **8ball:** Ask the magic 8-ball a question.
+- **MathQuiz:** Test your math skills.
+- **WordScramble:** Unscramble the word to win.
+- **choose:** Let the bot make a decision for you.
+- **fact:** Get a random fact.
+- **flip:** Flip a coin.
+- **friendship:** Calculate the friendship compatibility between two users.
+- **game:** Play a variety of games.
+- **getnumber20:** Get a random number between 1 and 20.
+- **joke:** Get a random joke.
+- **meme:** Get a random meme.
+- **quote:** Get a random quote.
+- **randomnumber:** Get a random number.
+- **rate:** Rate something.
+- **rockpaperscissor:** Play rock, paper, scissors.
+- **roll:** Roll a dice.
+- **say:** Make the bot say something.
+- **wordAssociation:** Play a game of word association.
 
-  <a href="https://www.instagram.com/glaceytt">
-    <img src="https://img.shields.io/badge/Instagram-Follow-E4405F?style=flat-square&logo=instagram"
-      alt="Instagram" />
-  </a>
+### **Media**
+- **gifs1-5:** A variety of gif commands.
+- **images:** Get a random image.
 
-  <a href="https://www.facebook.com/youulewd/">
-    <img src="https://img.shields.io/badge/Facebook-Follow-1877F2?style=flat-square&logo=facebook"
-      alt="Facebook" />
-  </a>
-</p>
+### **Moderation**
+- **channel:** Manage your server's channels.
+- **member:** Manage your server's members.
+- **messages:** Manage messages in your server.
+- **qurantine:** Quarantine a user.
+- **report:** Report a user.
+- **role:** Manage roles in your server.
 
-<h2>Discord All-in-One BOT Installation Guide</h2>
+### **Setups**
+- A wide range of setup commands to configure the bot for your server. This includes setting up anti-spam, auto-roles, logging, welcome messages, and much more.
 
-<h3>How to Install</h3>
+### **Utility**
+- **afk:** Set an AFK message.
+- **createpoll:** Create a poll.
+- **embed:** Create an embed message.
+- **qrgenerator:** Generate a QR code.
+- **show-emojis:** Show all the emojis in the server.
+- **suggestion:** Make a suggestion.
+- **time:** Get the current time.
+- **word:** Get information about a word.
+- **worldclock:** Get the time in different parts of the world.
 
-<h4>Step 1: Update <code>config.json</code> [ USE ENV FILES ]</h4>
+### **Music**
+- **play:** Play music from YouTube, Spotify, and other sources.
+- **mplay:** Another music command.
 
-<ol>
-  <li>Open the <code>config.json</code> and add your MongoDB URL.</li>
-</ol>
+## Installation
 
-<h4>ENV SETUP</h4>
+1.  Clone the repository: `git clone https://github.com/your-username/aio.git`
+2.  Install the dependencies: `npm install`
+3.  Create a `.env` file and fill in the required information (see `config.js` for details).
+4.  Start the bot: `npm start`
 
-<pre>
-TOKEN=, 
-FACEBOOK_ACCESS_TOKEN=, 
-FORTNITE_API_KEY=, 
-YOUTUBE_API_KEY=, 
-TWITCH_CLIENT_ID=, 
-TWITCH_ACCESS_TOKEN=, 
-INSTAGRAM_ACCESS_TOKEN=, 
-MONGODB_URI=
-GEMINI_API=
-</pre>
+## Configuration
 
-<h4>Step 2: Set Up Hosting Service</h4>
+The main configuration file is `config.js`. Here you can set the owner ID, bot status, and Spotify API credentials. For other configurations, you will need to use the setup commands within your Discord server.
 
-<ol>
-  <li>Go to your preferred hosting service. For this guide, we use <a href="https://render.com/">Render</a>.</li>
-  <li>In the Build & Deploy section, paste your repository URL.</li>
-</ol>
+## Contributing
 
-<h4>Step 3: Add Build and Start Commands</h4>
-<pre>
-Run the following commands to install dependencies and start your bot:
+Contributions are welcome! If you have any ideas or suggestions, please open an issue or create a pull request.
 
-npm install
-node index.js
-</pre>
+## License
 
-<h4>Step 4: Get Your Bot Token</h4>
-<ol>
-  <li>Navigate to the Discord Developer Portal.</li>
-  <li>Find your application, and retrieve the bot token from the "Bot" section.</li>
-</ol>
-
-<h4>Step 5: Set Environment Variable</h4>
-<ol>
-  <li>Create an environment variable with the following details:</li>
-  <ul>
-    <li>Key: TOKEN</li>
-    <li>Value: [your bot token]</li>
-  </ul>
-  <li>Deploy your application using your hosting service’s deployment process.</li>
-</ol>
-
-<h4>Step 6: Wait and Test</h4>
-<ol>
-  <li>Wait approximately five minutes for your bot to deploy and start up.</li>
-  <li>Test your bot by sending commands to ensure it is operational.</li>
-</ol>
-
-<p>🎉 Congratulations! Your bot is now up and running. 🥳</p>
-
-<h3>Additional Resources</h3>
-<p><strong>Video Tutorial:</strong> If you prefer a video guide, watch this YouTube tutorial [ Soon ].</p>
-<p><strong>Common Errors:</strong> Consult the errors section for troubleshooting.</p>
-
-<h3>Useful Files</h3>
-<ul>
-  <li><code>UI/banners/musicard.js</code>: Change, add, or remove music cards here.</li>
-  <li><code>UI/icons/musicicons.js</code>: Change, add, or remove music icons here.</li>
-</ul>
+This project is licensed under the ISC License. See the [LICENSE](LICENSE) file for details.

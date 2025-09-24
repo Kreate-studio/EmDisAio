@@ -1,20 +1,20 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, PermissionsBitField, EmbedBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
-const Event = require('../../models/pets/events');
+const { Event: EventModel } = require('../../models/pets/events');
 const { Pet } = require('../../models/pets/pets');
 const { updateGold, addToInventory } = require('../../models/economy');
 const GuildSettings = require('../../models/guild/GuildSettings');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function concludeBattle(thread, event, participantPets) {
+async function concludeBattle(thread, eventData, participantPets) {
     await sleep(3000);
 
-    if (event.bossHp <= 0) {
-        const victoryEmbed = new EmbedBuilder().setTitle(`🎉 ${event.name} has been defeated! 🎉`).setDescription('The pets fought valiantly and emerged victorious! Distributing rewards...').setColor('#00FF00').setTimestamp();
+    if (eventData.bossHp <= 0) {
+        const victoryEmbed = new EmbedBuilder().setTitle(`🎉 ${eventData.name} has been defeated! 🎉`).setDescription('The pets fought valiantly and emerged victorious! Distributing rewards...').setColor('#00FF00').setTimestamp();
         await thread.send({ embeds: [victoryEmbed] });
 
-        const { gold, item, xp } = event.rewards;
-        const rewardPromises = Array.from(event.participants.entries()).map(async ([userId, pData]) => {
+        const { gold, item, xp } = eventData.rewards;
+        const rewardPromises = Array.from(eventData.participants.entries()).map(async ([userId, pData]) => {
             if (pData.petId) {
                 await updateGold(userId, gold);
                 await addToInventory(userId, { id: item, uniqueId: `${Date.now()}-${userId}` });
@@ -24,10 +24,10 @@ async function concludeBattle(thread, event, participantPets) {
         await Promise.all(rewardPromises);
         await thread.send(`All participants received **${gold} Gold**, **1x ${item}**, and their pet gained **${xp} XP**!`);
     } else {
-        await thread.send({ embeds: [new EmbedBuilder().setTitle(`☠️ The pets have been defeated. ☠️`).setDescription(`**${event.name}** was too strong and has escaped.`).setColor('#FF0000').setTimestamp()] });
+        await thread.send({ embeds: [new EmbedBuilder().setTitle(`☠️ The pets have been defeated. ☠️`).setDescription(`**${eventData.name}** was too strong and has escaped.`).setColor('#FF0000').setTimestamp()] });
     }
 
-    await Event.findOneAndUpdate({ eventId: event.eventId }, { $set: { endAt: new Date(), bossHp: event.bossHp } });
+    await EventModel.findOneAndUpdate({ eventId: eventData.eventId }, { $set: { endAt: new Date(), bossHp: eventData.bossHp } });
     await sleep(10000);
     await thread.send('This thread will now be archived.');
     await thread.setArchived(true);
@@ -35,60 +35,64 @@ async function concludeBattle(thread, event, participantPets) {
 
 async function startAutomatedBattle(client, eventId, guildId, lobbyMessage) {
     try {
-        const event = await Event.findOne({ eventId });
-        if (!event) return;
+        const eventData = await EventModel.findOne({ eventId });
+        if (!eventData) return;
 
-        const thread = await lobbyMessage.startThread({ name: `Battle vs. ${event.name}`, autoArchiveDuration: 60 });
-        const participantPets = Array.from(event.participants.values()).map(data => ({ ...data.toObject(), currentHp: data.hp }));
+        const thread = await lobbyMessage.startThread({ name: `Battle vs. ${eventData.name}`, autoArchiveDuration: 60 });
+        const participantPets = Array.from(eventData.participants.values()).map(data => ({ ...data.toObject(), currentHp: data.hp }));
 
         if (participantPets.length === 0) {
-            await thread.send(`**${event.name}** leaves, as no pets answered the call.`);
-            await Event.findOneAndDelete({ eventId });
+            await thread.send(`**${eventData.name}** leaves, as no pets answered the call.`);
+            await EventModel.findOneAndDelete({ eventId });
             return thread.setArchived(true);
         }
 
-        await thread.send({ embeds: [new EmbedBuilder().setTitle(`The battle against ${event.name} begins!`).setDescription(`**${participantPets.length}** pets have joined the fight!`).setImage(event.image).setColor('#ff0000')] });
+        await thread.send({ embeds: [new EmbedBuilder().setTitle(`The battle against ${eventData.name} begins!`).setDescription(`**${participantPets.length}** pets have joined the fight!`).setImage(eventData.image).setColor('#ff0000')] });
         await sleep(5000);
 
         let battleTurn = 1;
         const battleInterval = setInterval(async () => {
-            let state = await Event.findOne({ eventId });
+            let state = await EventModel.findOne({ eventId });
             if (!state || state.bossHp <= 0 || participantPets.every(p => p.currentHp <= 0)) {
                 clearInterval(battleInterval);
                 return concludeBattle(thread, state, participantPets);
             }
 
-            let turnLog = `**Turn ${battleTurn} - Pets' Attack!**
-`;
+            let turnLog = `**Turn ${battleTurn} - Pets\' Attack!**\n`;
+            let totalDamageThisTurn = 0;
             participantPets.forEach(p => {
                 if (p.currentHp > 0 && state.bossHp > 0) {
                     const damage = Math.max(1, Math.floor(p.attack * (Math.random() * (1.2 - 0.8) + 0.8)));
                     state.bossHp -= damage;
+                    totalDamageThisTurn += damage;
                     const ability = (p.abilities && p.abilities.length > 0) ? p.abilities[Math.floor(Math.random() * p.abilities.length)] : 'Basic Attack';
-                    turnLog += `💥 **${p.name}** uses **${ability}** and deals **${damage}** damage!
-`;
+                    turnLog += `💥 **${p.name}** uses **${ability}** and deals **${damage}** damage!\n`;
                 }
             });
+            turnLog += `\n🔥 **Total damage this turn:** ${totalDamageThisTurn}`;
 
-            await thread.send({ embeds: [new EmbedBuilder().setColor('#FFFF00').setDescription(turnLog).addFields({ name: 'Boss HP', value: `**${Math.max(0, state.bossHp)}** / ${state.maxHp}` })] });
-            await Event.updateOne({ eventId }, { $set: { bossHp: state.bossHp } });
+            const petHpField = { name: 'Pet Health', value: participantPets.map(p => `**${p.name}**: ${Math.max(0, p.currentHp)} / ${p.hp}`).join('\n'), inline: true };
+            const bossHpField = { name: 'Boss HP', value: `**${Math.max(0, state.bossHp)}** / ${state.maxHp}`, inline: true };
+            await thread.send({ embeds: [new EmbedBuilder().setColor('#FFFF00').setDescription(turnLog).setFields(petHpField, bossHpField)] });
+            await EventModel.updateOne({ eventId }, { $set: { bossHp: state.bossHp } });
             await sleep(4000);
 
-            state = await Event.findOne({ eventId });
+            state = await EventModel.findOne({ eventId });
             if (state.bossHp <= 0) return;
 
-            let bossLog = `**Turn ${battleTurn} - ${state.name}'s Attack!**
-`;
+            let bossLog = `**Turn ${battleTurn} - ${state.name}\'s Attack!**\n`;
             const alivePets = participantPets.filter(p => p.currentHp > 0);
             if (alivePets.length > 0) {
                 const target = alivePets[Math.floor(Math.random() * alivePets.length)];
                 const damage = Math.max(1, Math.floor((state.rewards.gold / 4) * (Math.random() * (1.5 - 0.5) + 0.5)));
                 target.currentHp -= damage;
-                bossLog += `**${state.name}** strikes **${target.name}** for **${damage}** damage!`;
-                if (target.currentHp <= 0) bossLog += ` **${target.name}** is knocked out!`;
+                bossLog += `**${state.name}** strikes **${target.name}** for **${damage}** damage! **${target.name}** has **${Math.max(0, target.currentHp)}** HP remaining.`;
+                 if (target.currentHp <= 0) bossLog += ` **${target.name}** is knocked out!`;
             }
 
-            await thread.send({ embeds: [new EmbedBuilder().setColor('#FF4500').setDescription(bossLog).addFields({ name: 'Pets Remaining', value: `**${alivePets.filter(p=>p.currentHp>0).length}** / ${participantPets.length}` })] });
+            const updatedPetHpField = { name: 'Pet Health', value: participantPets.map(p => `**${p.name}**: ${Math.max(0, p.currentHp)} / ${p.hp}`).join('\n'), inline: true };
+            const updatedBossHpField = { name: 'Boss HP', value: `**${Math.max(0, state.bossHp)}** / ${state.maxHp}`, inline: true };
+            await thread.send({ embeds: [new EmbedBuilder().setColor('#FF4500').setDescription(bossLog).setFields(updatedPetHpField, updatedBossHpField)] });
             await sleep(4000);
 
             battleTurn++;
@@ -131,7 +135,7 @@ module.exports = {
                 const hp = parseInt(modalInteraction.fields.getTextInputValue('hp'));
                 const eventId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-                const newEvent = new Event({
+                const newEvent = new EventModel({
                     eventId, name: modalInteraction.fields.getTextInputValue('name'),
                     startAt: startTime, endAt: new Date(startTime.getTime() + lobbyMinutes * 60000),
                     bossHp: hp, maxHp: hp, image: modalInteraction.fields.getTextInputValue('image') || null,
@@ -151,19 +155,21 @@ module.exports = {
                     const userPets = await Pet.find({ ownerId: joinInteraction.user.id, isDead: false, "stats.energy": { $gt: 0 } });
                     if (userPets.length === 0) return joinInteraction.reply({ content: 'You have no eligible pets.', flags: [MessageFlags.Ephemeral] });
 
-                    const event = await Event.findOne({ eventId: collectedEventId });
-                    if (!event || event.participants.has(joinInteraction.user.id)) return joinInteraction.reply({ content: 'You already joined!', flags: [MessageFlags.Ephemeral] });
+                    const eventData = await EventModel.findOne({ eventId: collectedEventId });
+                    if (!eventData || eventData.participants.has(joinInteraction.user.id)) return joinInteraction.reply({ content: 'You already joined!', flags: [MessageFlags.Ephemeral] });
 
                     const options = userPets.map(p => ({ label: `${p.name} (Lvl ${p.level})`, description: `ATK: ${p.stats.attack}/HP: ${p.stats.hp}`, value: p._id.toString() }));
                     const menu = new StringSelectMenuBuilder().setCustomId(`boss-pet-select_${collectedEventId}`).setPlaceholder('Choose your champion!').addOptions(options);
-                    const menuMessage = await joinInteraction.reply({ content: 'Which pet will you send?', components: [new ActionRowBuilder().addComponents(menu)], flags: [MessageFlags.Ephemeral], fetchReply: true });
+                    await joinInteraction.reply({ content: 'Which pet will you send?', components: [new ActionRowBuilder().addComponents(menu)], flags: [MessageFlags.Ephemeral] });
+                    const menuMessage = await joinInteraction.fetchReply();
+
 
                     try {
                         const selectInteraction = await menuMessage.awaitMessageComponent({ componentType: ComponentType.StringSelect, time: 60000 });
                         const petId = selectInteraction.values[0];
                         const chosenPet = userPets.find(p => p._id.toString() === petId);
 
-                        const updatedEvent = await Event.findOneAndUpdate(
+                        const updatedEvent = await EventModel.findOneAndUpdate(
                             { eventId: collectedEventId, [`participants.${selectInteraction.user.id}`]: { $exists: false } },
                             {
                                 $set: {
@@ -197,7 +203,7 @@ module.exports = {
                 });
 
                 lobbyCollector.on('end', async () => {
-                    const finalEvent = await Event.findOne({ eventId });
+                    const finalEvent = await EventModel.findOne({ eventId });
                     if (finalEvent) {
                         await msg.edit({ content: `Lobby closed! The battle against **${finalEvent.name}** begins!`, components: [] });
                         startAutomatedBattle(message.client, eventId, message.guild.id, msg);
