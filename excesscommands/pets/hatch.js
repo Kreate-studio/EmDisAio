@@ -46,8 +46,9 @@ function determinePetRarity(eggRarity) {
     return 'common';
 }
 
-async function initiateHatching(interaction, egg) {
-    const userId = interaction.user.id;
+async function initiateHatching(source, egg) {
+    const userId = source.user?.id || source.author.id;
+    const isInteraction = typeof source.update === 'function';
 
     const baseEggData = getBaseEggData(egg.name);
     if (!egg.rarity && baseEggData) {
@@ -58,7 +59,10 @@ async function initiateHatching(interaction, egg) {
     if (!baseEggData) {
         const errorEmbed = new EmbedBuilder().setColor('#ff0000').setDescription(`The egg named "${egg.name}" is corrupted or its data is missing. It cannot be hatched.`);
         const replyOptions = { embeds: [errorEmbed], components: [] };
-        return interaction.isMessageComponent() ? interaction.update(replyOptions) : interaction.reply(replyOptions);
+        if (isInteraction) {
+            return source.reply({ ...replyOptions, ephemeral: true });
+        }
+        return source.reply(replyOptions);
     }
 
     const hatchButton = new ButtonBuilder().setCustomId(`hatch_egg_${egg.uniqueId}`).setLabel('Hatch').setStyle(ButtonStyle.Primary);
@@ -70,7 +74,8 @@ async function initiateHatching(interaction, egg) {
         .setImage(egg.image)
         .setDescription('Click the button below to hatch your egg.');
 
-    const reply = await (interaction.isMessageComponent() ? interaction.update({ embeds: [embed], components: [row], fetchReply: true }) : interaction.reply({ embeds: [embed], components: [row], fetchReply: true }));
+    const replyOptions = { embeds: [embed], components: [row], fetchReply: true };
+    const reply = await (isInteraction ? source.update(replyOptions) : source.reply(replyOptions));
 
     const filter = i => i.customId === `hatch_egg_${egg.uniqueId}` && i.user.id === userId;
     const collector = reply.createMessageComponentCollector({ filter, time: 60000, max: 1 });

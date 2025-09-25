@@ -4,34 +4,37 @@ const { getEconomyProfile, updateEconomyProfile } = require('../../models/econom
 
 const REVIVAL_COST = 500;
 
-async function revivePet(interaction, pet) {
-    const userId = interaction.user.id;
+async function revivePet(source, pet) {
+    const userId = source.user?.id || source.author.id;
+    const isInteraction = source.isMessageComponent && typeof source.isMessageComponent === 'function';
 
     if (!pet.isDead) {
-        return interaction.reply({ content: `**${pet.name}** is not defeated.`, ephemeral: true });
+        const content = `**${pet.name}** is not defeated.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     const economyProfile = await getEconomyProfile(userId);
 
     if (economyProfile.wallet < REVIVAL_COST) {
-        return interaction.reply({ content: `You don\'t have enough money to revive **${pet.name}**. You need ${REVIVAL_COST} coins.`, ephemeral: true });
+        const content = `You don\'t have enough money to revive **${pet.name}**. You need ${REVIVAL_COST} coins.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
+
+    await updateEconomyProfile(userId, { wallet: economyProfile.wallet - REVIVAL_COST });
 
     pet.isDead = false;
     pet.stats.hp = pet.stats.maxHealth; // Restore to full health
     await pet.save();
-
-    await updateEconomyProfile(userId, { wallet: economyProfile.wallet - REVIVAL_COST });
 
     const embed = new EmbedBuilder()
         .setTitle('Pet Revived!')
         .setDescription(`You have revived **${pet.name}** for ${REVIVAL_COST} coins.`)
         .setColor('#00FF00');
 
-    if (interaction.isMessageComponent()) {
-        await interaction.update({ content: ' ', embeds: [embed], components: [] });
+    if (isInteraction) {
+        await source.update({ content: ' ', embeds: [embed], components: [] });
     } else {
-        await interaction.reply({ embeds: [embed] });
+        await source.reply({ embeds: [embed] });
     }
 }
 

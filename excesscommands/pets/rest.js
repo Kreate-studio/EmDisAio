@@ -3,7 +3,9 @@ const { Pet } = require('../../models/pets/pets');
 
 const COOLDOWN_MINUTES = 30;
 
-async function restWithPet(interaction, pet) {
+async function restWithPet(source, pet) {
+    const isInteraction = source.isMessageComponent && typeof source.isMessageComponent === 'function';
+
     const now = new Date();
     if (pet.cooldowns.rest) {
         const lastRest = new Date(pet.cooldowns.rest);
@@ -11,16 +13,19 @@ async function restWithPet(interaction, pet) {
 
         if (diffMinutes < COOLDOWN_MINUTES) {
             const remainingTime = COOLDOWN_MINUTES - diffMinutes;
-            return interaction.reply({ content: `${pet.name} is not ready to rest yet. It needs **${remainingTime} more minute(s)**.`, ephemeral: true });
+            const content = `${pet.name} is not ready to rest yet. It needs **${remainingTime} more minute(s)**.`;
+            return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
         }
     }
 
     if (pet.isDead) {
-        return interaction.reply({ content: `You cannot let a defeated pet rest. Please revive it first.`, ephemeral: true });
+        const content = `You cannot let a defeated pet rest. Please revive it first.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     if (pet.stats.energy >= 100) {
-        return interaction.reply({ content: `${pet.name} is already fully rested.`, ephemeral: true });
+        const content = `${pet.name} is already fully rested.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     pet.stats.energy = Math.min(100, pet.stats.energy + 30);
@@ -35,10 +40,10 @@ async function restWithPet(interaction, pet) {
         )
         .setColor('#87CEEB');
 
-    if (interaction.isMessageComponent()) {
-        await interaction.update({ content: ' ', embeds: [embed], components: [] });
+    if (isInteraction) {
+        await source.update({ content: ' ', embeds: [embed], components: [] });
     } else {
-        await interaction.reply({ embeds: [embed] });
+        await source.reply({ embeds: [embed] });
     }
 }
 

@@ -3,14 +3,15 @@ const { Pet } = require('../../models/pets/pets');
 const rarityColors = require('../../utils/rarityColors');
 const { getXPForNextLevel } = require('../../utils/xpUtils');
 
-async function displayPetInfo(interaction, pet) {
+async function displayPetInfo(source, pet) {
     const rarityColor = rarityColors[pet.rarity.toLowerCase()] || '#FFFFFF';
     const xpForNextLevel = getXPForNextLevel(pet.level);
 
     const abilities = pet.abilities.map(a => a.name).join(', ') || 'None';
     const specialAbilities = pet.specialAbilities.map(a => a.name).join(', ') || 'None';
     
-    const displayName = interaction.member?.displayName || interaction.user.username;
+    const user = source.user || source.author;
+    const displayName = source.member?.displayName || user.username;
 
     const embed = new EmbedBuilder()
         .setTitle(`${pet.name} - Level ${pet.level}`)
@@ -32,10 +33,10 @@ async function displayPetInfo(interaction, pet) {
         )
         .setFooter({ text: `Owned by ${displayName}` });
 
-    if (interaction.isMessageComponent()) {
-        await interaction.update({ content: ' ', embeds: [embed], components: [] });
+    if (source.isMessageComponent && typeof source.isMessageComponent === 'function') {
+        await source.update({ content: ' ', embeds: [embed], components: [] });
     } else {
-        await interaction.reply({ embeds: [embed] });
+        await source.reply({ embeds: [embed] });
     }
 }
 
@@ -50,7 +51,7 @@ module.exports = {
         if (petName) {
             const pet = await Pet.findOne({ ownerId: userId, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
             if (!pet) {
-                return message.reply(`You don\'t have a pet named "${petName}".`);
+                return message.reply(`You don\'t have a pet named \"${petName}\".`);
             }
             return displayPetInfo(message, pet);
         } else {

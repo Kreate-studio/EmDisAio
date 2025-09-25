@@ -4,8 +4,9 @@ const { getEconomyProfile, removeFromInventory } = require('../../models/economy
 
 const COOLDOWN_MINUTES = 5;
 
-async function feedPet(interaction, pet, foodItem) {
-    const userId = interaction.user.id;
+async function feedPet(source, pet, foodItem) {
+    const userId = source.user?.id || source.author.id;
+    const isInteraction = source.isMessageComponent && typeof source.isMessageComponent === 'function';
 
     const now = new Date();
     if (pet.cooldowns.feed) {
@@ -14,16 +15,19 @@ async function feedPet(interaction, pet, foodItem) {
 
         if (diffMinutes < COOLDOWN_MINUTES) {
             const remainingTime = COOLDOWN_MINUTES - diffMinutes;
-            return interaction.reply({ content: `${pet.name} is not hungry yet. You can feed it again in **${remainingTime} more minute(s)**.`, ephemeral: true });
+            const content = `${pet.name} is not hungry yet. You can feed it again in **${remainingTime} more minute(s)**.`;
+            return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
         }
     }
 
     if (pet.isDead) {
-        return interaction.reply({ content: `You cannot feed a defeated pet. Please revive it first.`, ephemeral: true });
+        const content = `You cannot feed a defeated pet. Please revive it first.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     if (pet.stats.hunger >= 100) {
-        return interaction.reply({ content: `${pet.name} is already full.`, ephemeral: true });
+        const content = `${pet.name} is already full.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     pet.stats.hunger = Math.min(100, pet.stats.hunger + 40);
@@ -38,10 +42,10 @@ async function feedPet(interaction, pet, foodItem) {
         .addFields({ name: 'Hunger', value: `+40 (Current: ${pet.stats.hunger})`, inline: true })
         .setColor('#FF8C00');
 
-    if (interaction.isMessageComponent()) {
-        await interaction.update({ content: ' ', embeds: [embed], components: [] });
+    if (isInteraction) {
+        await source.update({ content: ' ', embeds: [embed], components: [] });
     } else {
-        await interaction.reply({ embeds: [embed] });
+        await source.reply({ embeds: [embed] });
     }
 }
 
@@ -62,7 +66,7 @@ module.exports = {
         if (petName) {
             const pet = await Pet.findOne({ ownerId: userId, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
             if (!pet) {
-                return message.reply(`You don\'t have a pet named "${petName}".`);
+                return message.reply(`You don\'t have a pet named \"${petName}\".`);
             }
             return feedPet(message, pet, foodItem);
         } else {
@@ -101,7 +105,12 @@ module.exports = {
                 const selectedPetId = i.values[0];
                 const selectedPet = userPets.find(p => p._id.toString() === selectedPetId);
                 if (selectedPet) {
-                    await feedPet(i, selectedPet, foodItem);
+                    const currentProfile = await getEconomyProfile(userId);
+                    const currentFood = currentProfile.inventory.find(item => item.id === 'pet_food_pack');
+                    if (!currentFood) {
+                         return i.reply({ content: 'You ran out of pet food while deciding!', ephemeral: true });
+                    }
+                    await feedPet(i, selectedPet, currentFood);
                 }
             });
 

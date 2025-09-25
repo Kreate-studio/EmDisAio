@@ -3,7 +3,9 @@ const { Pet } = require('../../models/pets/pets');
 
 const COOLDOWN_MINUTES = 5;
 
-async function playWithPet(interaction, pet) {
+async function playWithPet(source, pet) {
+    const isInteraction = source.isMessageComponent && typeof source.isMessageComponent === 'function';
+
     const now = new Date();
     if (pet.cooldowns.play) {
         const lastPlay = new Date(pet.cooldowns.play);
@@ -11,16 +13,19 @@ async function playWithPet(interaction, pet) {
 
         if (diffMinutes < COOLDOWN_MINUTES) {
             const remainingTime = COOLDOWN_MINUTES - diffMinutes;
-            return interaction.reply({ content: `${pet.name} is tired. It needs to rest for **${remainingTime} more minute(s)** before it can play again.`, ephemeral: true });
+            const content = `${pet.name} is tired. It needs to rest for **${remainingTime} more minute(s)** before it can play again.`;
+            return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
         }
     }
 
     if (pet.isDead) {
-        return interaction.reply({ content: `You cannot play with a defeated pet. Please revive it first.`, ephemeral: true });
+        const content = `You cannot play with a defeated pet. Please revive it first.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     if (pet.stats.energy < 20) {
-        return interaction.reply({ content: `${pet.name} is too tired to play.`, ephemeral: true });
+        const content = `${pet.name} is too tired to play.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     pet.stats.happiness = Math.min(100, pet.stats.happiness + 15);
@@ -37,10 +42,10 @@ async function playWithPet(interaction, pet) {
         )
         .setColor('#FFC0CB');
 
-    if (interaction.isMessageComponent()) {
-        await interaction.update({ content: ' ', embeds: [embed], components: [] });
+    if (isInteraction) {
+        await source.update({ content: ' ', embeds: [embed], components: [] });
     } else {
-        await interaction.reply({ embeds: [embed] });
+        await source.reply({ embeds: [embed] });
     }
 }
 
@@ -54,7 +59,7 @@ module.exports = {
         if (petName) {
             const pet = await Pet.findOne({ ownerId: userId, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
             if (!pet) {
-                return message.reply(`You don\'t have a pet named "${petName}".`);
+                return message.reply(`You don\'t have a pet named \"${petName}\".`);
             }
             return playWithPet(message, pet);
         } else {

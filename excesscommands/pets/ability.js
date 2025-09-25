@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ComponentType } = require('discord.js');
 const { Pet } = require('../../models/pets/pets');
 const rarityColors = require('../../utils/rarityColors');
 
@@ -49,43 +49,96 @@ const formatAbility = (ability) => {
     return `${description}*${effectDescription}*`;
 };
 
+async function displayAbilities(source, pet) {
+    const isInteraction = source.isMessageComponent && typeof source.isMessageComponent === 'function';
+
+    const embed = new EmbedBuilder()
+        .setTitle(`✨ Abilities for ${pet.name} ✨`)
+        .setColor(rarityColors[pet.rarity.toLowerCase()] || '#0099ff')
+        .setThumbnail(pet.image || null);
+
+    const hasStandardAbilities = pet.abilities && pet.abilities.length > 0;
+    const hasSpecialAbilities = pet.specialAbilities && pet.specialAbilities.length > 0;
+
+    if (hasStandardAbilities) {
+        const regularAbilities = pet.abilities.map(formatAbility).join('\n\n');
+        embed.addFields({ name: 'Standard Abilities', value: regularAbilities });
+    }
+
+    if (hasSpecialAbilities) {
+        const specialAbilities = pet.specialAbilities.map(formatAbility).join('\n\n');
+        embed.addFields({ name: '🌟 Special Abilities', value: specialAbilities });
+    }
+
+    if (!hasStandardAbilities && !hasSpecialAbilities) {
+        embed.setDescription('This pet has not learned any abilities yet.');
+    }
+
+    if (isInteraction) {
+        await source.update({ embeds: [embed], components: [] });
+    } else {
+        await source.reply({ embeds: [embed] });
+    }
+}
+
 module.exports = {
     name: 'ability',
     description: "Displays detailed information about a pet's abilities.",
     async execute(message, args) {
-        const petName = args.join(' ');
-        if (!petName) {
-            return message.reply('Please specify a pet name. Usage: `$pet ability <pet-name>`');
+        const userId = message.author.id;
+        const petName = args.join(' ').trim();
+
+        if (petName) {
+            const pet = await Pet.findOne({ ownerId: userId, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
+            if (!pet) {
+                return message.reply(`You do not own a pet named \"${petName}\".`);
+            }
+            return displayAbilities(message, pet);
+        } else {
+            const userPets = await Pet.find({ ownerId: userId });
+
+            if (userPets.length === 0) {
+                return message.reply('You don\'t have any pets.');
+            }
+
+            if (userPets.length === 1) {
+                return displayAbilities(message, userPets[0]);
+            }
+
+            const options = userPets.map(pet => ({
+                label: pet.name,
+                description: `Rarity: ${pet.rarity}`,
+                value: pet._id.toString(),
+            }));
+
+            const row = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('ability_pet_select')
+                    .setPlaceholder('Select a pet to view its abilities...')
+                    .addOptions(options)
+            );
+
+            const selectMessage = await message.reply({ content: 'You have multiple pets. Please select one to view its abilities:', components: [row] });
+
+            const collector = selectMessage.createMessageComponentCollector({
+                componentType: ComponentType.StringSelect,
+                time: 60000,
+                filter: i => i.user.id === userId && i.customId === 'ability_pet_select'
+            });
+
+            collector.on('collect', async i => {
+                const selectedPetId = i.values[0];
+                const selectedPet = userPets.find(p => p._id.toString() === selectedPetId);
+                if (selectedPet) {
+                    await displayAbilities(i, selectedPet);
+                }
+            });
+
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    selectMessage.edit({ content: 'Pet selection timed out.', components: [] });
+                }
+            });
         }
-
-        const pet = await Pet.findOne({ ownerId: message.author.id, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
-
-        if (!pet) {
-            return message.reply(`You do not own a pet named \"${petName}\".`);
-        }
-
-        const embed = new EmbedBuilder()
-            .setTitle(`✨ Abilities for ${pet.name} ✨`)
-            .setColor(rarityColors[pet.rarity.toLowerCase()] || '#0099ff')
-            .setThumbnail(pet.image || null);
-
-        const hasStandardAbilities = pet.abilities && pet.abilities.length > 0;
-        const hasSpecialAbilities = pet.specialAbilities && pet.specialAbilities.length > 0;
-
-        if (hasStandardAbilities) {
-            const regularAbilities = pet.abilities.map(formatAbility).join('\n\n');
-            embed.addFields({ name: 'Standard Abilities', value: regularAbilities });
-        }
-
-        if (hasSpecialAbilities) {
-            const specialAbilities = pet.specialAbilities.map(formatAbility).join('\n\n');
-            embed.addFields({ name: '🌟 Special Abilities', value: specialAbilities });
-        }
-
-        if (!hasStandardAbilities && !hasSpecialAbilities) {
-            embed.setDescription('This pet has not learned any abilities yet.');
-        }
-
-        message.reply({ embeds: [embed] });
     },
 };

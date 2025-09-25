@@ -7,8 +7,10 @@ const { v4: uuidv4 } = require('uuid');
 const adventureItems = [...petShopItems['Pet Supplies'], ...petShopItems['Pet Toys']];
 const COOLDOWN_MINUTES = 60;
 
-async function goOnAdventure(interaction, pet) {
-    const userId = interaction.user.id;
+async function goOnAdventure(source, pet) {
+    const userId = source.user?.id || source.author.id;
+    const isInteraction = source.isMessageComponent && typeof source.isMessageComponent === 'function';
+
     const now = new Date();
     if (pet.cooldowns.adventure) {
         const lastAdventure = new Date(pet.cooldowns.adventure);
@@ -16,12 +18,14 @@ async function goOnAdventure(interaction, pet) {
 
         if (diffMinutes < COOLDOWN_MINUTES) {
             const remainingTime = COOLDOWN_MINUTES - diffMinutes;
-            return interaction.reply({ content: `${pet.name} is tired. It needs to rest for **${remainingTime} more minute(s)** before it can go on an adventure again.`, ephemeral: true });
+            const content = `${pet.name} is tired. It needs to rest for **${remainingTime} more minute(s)** before it can go on an adventure again.`;
+            return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
         }
     }
 
     if (pet.stats.energy < 40) {
-        return interaction.reply({ content: `${pet.name} is too tired for an adventure. Let it rest first.`, ephemeral: true });
+        const content = `${pet.name} is too tired for an adventure. Let it rest first.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     // Decrease energy and add XP
@@ -52,10 +56,10 @@ async function goOnAdventure(interaction, pet) {
         embed.addFields({ name: 'Item Found!', value: `${pet.name} found a ${itemFound.name}!` });
     }
 
-    if (interaction.isMessageComponent()) {
-        await interaction.update({ content: ' ', embeds: [embed], components: [] });
+    if (isInteraction) {
+        await source.update({ content: ' ', embeds: [embed], components: [] });
     } else {
-        await interaction.reply({ embeds: [embed] });
+        await source.reply({ embeds: [embed] });
     }
 }
 
@@ -70,7 +74,7 @@ module.exports = {
         if (petName) {
             const pet = await Pet.findOne({ ownerId: userId, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
             if (!pet) {
-                return message.reply(`You don\'t have a pet named "${petName}".`);
+                return message.reply(`You don\'t have a pet named \"${petName}\".`);
             }
             return goOnAdventure(message, pet);
         } else {

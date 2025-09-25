@@ -1,44 +1,48 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ComponentType } = require('discord.js');
 const { Pet } = require('../../models/pets/pets');
-const { GuildSettings } = require('../../models/guild/GuildSettings'); // Correctly import GuildSettings
+const { GuildSettings } = require('../../models/guild/GuildSettings');
 const { activeBattles } = require('./battleState');
 
 /**
- * Deep clones a pet object and applies passive abilities for the battle duration.
+ * Creates a battle-ready clone of a pet, including applying passive abilities.
  * @param {object} pet - The original Mongoose pet document.
  * @returns {{pet: object, effects: string[]}} - The cloned pet with modified stats and a list of effect messages.
  */
 const initializePetForBattle = (pet) => {
-    const battlePet = JSON.parse(JSON.stringify(pet.toObject()));
+    // A more robust way to clone the pet object for battle
+    const battlePet = {
+        ...pet.toObject(), // Copies all top-level fields from the document
+        statusEffects: [], // Ensure statusEffects is always an array
+    };
+    
     const effects = [];
 
-    if (!battlePet.specialAbilities || !Array.isArray(battlePet.specialAbilities)) {
-        return { pet: battlePet, effects };
-    }
-
-    for (const ability of battlePet.specialAbilities) {
-        if (ability.type === 'passive' && ability.effect) {
-            let message = '';
-            if (ability.effect.defenseBoost) {
-                battlePet.stats.defense += ability.effect.defenseBoost;
-                message = `🛡️ **${ability.name}** boosted ${battlePet.name}\'s defense by ${ability.effect.defenseBoost}!`;
+    if (battlePet.specialAbilities && Array.isArray(battlePet.specialAbilities)) {
+        for (const ability of battlePet.specialAbilities) {
+            if (ability.type === 'passive' && ability.effect) {
+                let message = '';
+                if (ability.effect.defenseBoost) {
+                    battlePet.stats.defense += ability.effect.defenseBoost;
+                    message = `🛡️ **${ability.name}** boosted ${battlePet.name}\'s defense by ${ability.effect.defenseBoost}!`;
+                }
+                if (ability.effect.allyAttackUp) { // In 1v1, this is a self-buff
+                    battlePet.stats.attack += ability.effect.allyAttackUp;
+                    message = `⚔️ **${ability.name}** boosted ${battlePet.name}\'s attack by ${ability.effect.allyAttackUp}!`;
+                }
+                if (ability.effect.randomBuff) {
+                    const statsToBuff = ability.effect.randomBuff;
+                    const randomStat = statsToBuff[Math.floor(Math.random() * statsToBuff.length)];
+                    const boostAmount = Math.round(battlePet.stats[randomStat] * 0.15); // 15% boost
+                    battlePet.stats[randomStat] += boostAmount;
+                    message = `✨ **${ability.name}** randomly boosted ${battlePet.name}\'s ${randomStat} by ${boostAmount}!`;
+                }
+                if (message) effects.push(message);
             }
-            if (ability.effect.allyAttackUp) { // In 1v1, this is a self-buff
-                battlePet.stats.attack += ability.effect.allyAttackUp;
-                message = `⚔️ **${ability.name}** boosted ${battlePet.name}\'s attack by ${ability.effect.allyAttackUp}!`;
-            }
-            if (ability.effect.randomBuff) {
-                const statsToBuff = ability.effect.randomBuff;
-                const randomStat = statsToBuff[Math.floor(Math.random() * statsToBuff.length)];
-                const boostAmount = Math.round(battlePet.stats[randomStat] * 0.15); // 15% boost
-                battlePet.stats[randomStat] += boostAmount;
-                message = `✨ **${ability.name}** randomly boosted ${battlePet.name}\'s ${randomStat} by ${boostAmount}!`;
-            }
-            if (message) effects.push(message);
         }
     }
     return { pet: battlePet, effects };
 };
+
 
 module.exports = {
     name: 'battle',
@@ -66,20 +70,59 @@ module.exports = {
         if (opponentUser.bot || opponentUser.id === message.author.id) {
             return message.reply('You cannot battle a bot or yourself.');
         }
+        
+        const challengerId = message.author.id;
+        const challengerPets = await Pet.find({ ownerId: challengerId, isDead: false });
 
-        const challengerPetName = args.filter(arg => !arg.startsWith('<@')).join(' ');
-
-        if (!challengerPetName) {
-            return message.reply('Usage: `$pet battle @user <your-pet-name>`');
+        if (challengerPets.length === 0) {
+            return message.reply('You have no available pets to battle with.');
         }
 
-        const challengerPetDoc = await Pet.findOne({ ownerId: message.author.id, name: { $regex: new RegExp(`^${challengerPetName}$`, 'i') } });
+        const petNameArg = args.filter(arg => !arg.startsWith('<@')).join(' ').trim();
+        let challengerPetDoc;
 
-        if (!challengerPetDoc) return message.reply(`You do not own a pet named '${challengerPetName}'.`);
-        if (challengerPetDoc.isDead || challengerPetDoc.stats.hp <= 0) return message.reply(`Your pet, ${challengerPetDoc.name}, is defeated and cannot battle.`);
+        if (petNameArg) {
+            challengerPetDoc = challengerPets.find(p => p.name.toLowerCase() === petNameArg.toLowerCase());
+            if (!challengerPetDoc) {
+                return message.reply(`You do not own an undefeated pet named "${petNameArg}".`);
+            }
+        } else {
+            const options = challengerPets.map(pet => ({
+                label: pet.name,
+                description: `HP: ${pet.stats.hp}, Atk: ${pet.stats.attack}, Def: ${pet.stats.defense}, Spd: ${pet.stats.speed}`,
+                value: pet._id.toString(),
+            }));
 
-        const battleId1 = `${message.author.id}-${opponentUser.id}`;
-        const battleId2 = `${opponentUser.id}-${message.author.id}`;
+            const row = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('challenger_pet_select')
+                    .setPlaceholder('Select your pet for the battle...')
+                    .addOptions(options)
+            );
+
+            const selectMessage = await message.reply({ content: 'Please select your pet for the battle:', components: [row] });
+
+            const collector = selectMessage.createMessageComponentCollector({
+                componentType: ComponentType.StringSelect, time: 60000, filter: i => i.user.id === challengerId
+            });
+
+            challengerPetDoc = await new Promise(resolve => {
+                collector.on('collect', async i => {
+                    const selectedPet = challengerPets.find(p => p._id.toString() === i.values[0]);
+                    await i.update({ content: `You have selected **${selectedPet.name}**.`, components: [] });
+                    resolve(selectedPet);
+                });
+                collector.on('end', collected => {
+                    if (collected.size === 0) resolve(null);
+                });
+            });
+
+            if (!challengerPetDoc) return message.channel.send('Pet selection timed out.');
+        }
+
+
+        const battleId1 = `${challengerId}-${opponentUser.id}`;
+        const battleId2 = `${opponentUser.id}-${challengerId}`;
         if (activeBattles.has(battleId1) || activeBattles.has(battleId2)) {
             return message.reply('There is already an active battle or challenge between you and this user.');
         }
@@ -88,24 +131,49 @@ module.exports = {
             .setTitle('⚔️ A Battle Challenge has been issued! ⚔️')
             .setDescription(`${opponentUser.username}, ${message.author.username} challenges you to a battle with **${challengerPetDoc.name}**.\n\nDo you accept? (yes/no)`)
             .setColor('#FFD700');
-        await message.channel.send({ content: `${opponentUser}`, embeds: [challengeEmbed] });
+        const challengeMessage = await message.channel.send({ content: `${opponentUser}`, embeds: [challengeEmbed] });
 
         const filter = (response) => response.author.id === opponentUser.id && ['yes', 'no'].includes(response.content.toLowerCase());
         try {
             const collected = await message.channel.awaitMessages({ filter, time: 60000, max: 1, errors: ['time'] });
             if (collected.first().content.toLowerCase() === 'yes') {
-                await message.channel.send(`${opponentUser.username}, please choose your pet by typing its name.`);
-                const petFilter = (response) => response.author.id === opponentUser.id;
-                const petCollected = await message.channel.awaitMessages({ filter: petFilter, max: 1, time: 30000, errors: ['time'] });
-                const opponentPetName = petCollected.first().content.trim();
-                const opponentPetDoc = await Pet.findOne({ ownerId: opponentUser.id, name: { $regex: new RegExp(`^${opponentPetName}$`, 'i') } });
+                const opponentPets = await Pet.find({ ownerId: opponentUser.id, isDead: false });
+                if (opponentPets.length === 0) {
+                    return challengeMessage.reply('You have no available pets to battle with.');
+                }
 
-                if (!opponentPetDoc) {
-                    return message.channel.send(`You do not own a pet named '${opponentPetName}'. Battle cancelled.`);
-                }
-                if (opponentPetDoc.isDead || opponentPetDoc.stats.hp <= 0) {
-                    return message.channel.send(`${opponentPetDoc.name} is defeated and cannot battle. Battle cancelled.`);
-                }
+                const options = opponentPets.map(pet => ({
+                    label: pet.name,
+                    description: `HP: ${pet.stats.hp}, Atk: ${pet.stats.attack}, Def: ${pet.stats.defense}, Spd: ${pet.stats.speed}`,
+                    value: pet._id.toString(),
+                }));
+
+                const row = new ActionRowBuilder().addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId('opponent_pet_select')
+                        .setPlaceholder('Select your pet...')
+                        .addOptions(options)
+                );
+
+                const selectMessage = await challengeMessage.reply({ content: `${opponentUser.username}, please select your pet for the battle:`, components: [row] });
+
+                const collector = selectMessage.createMessageComponentCollector({ 
+                    componentType: ComponentType.StringSelect, time: 60000, filter: i => i.user.id === opponentUser.id
+                });
+                
+                const opponentPetDoc = await new Promise(resolve => {
+                    collector.on('collect', async i => {
+                        const selectedPet = opponentPets.find(p => p._id.toString() === i.values[0]);
+                        await i.update({ content: `You have selected **${selectedPet.name}**.`, components: [] });
+                        resolve(selectedPet);
+                    });
+                    collector.on('end', collected => {
+                        if (collected.size === 0) resolve(null);
+                    });
+                });
+
+                if (!opponentPetDoc) return message.channel.send('Pet selection timed out.');
+
 
                 const { pet: challengerBattlePet, effects: challengerEffects } = initializePetForBattle(challengerPetDoc);
                 const { pet: opponentBattlePet, effects: opponentEffects } = initializePetForBattle(opponentPetDoc);
@@ -114,7 +182,7 @@ module.exports = {
                 if (challengerBattlePet.stats.speed > opponentBattlePet.stats.speed) {
                     firstTurnUser = message.author;
                     turnMessage = `**${challengerBattlePet.name}** is faster and gets the first move!`;
-                } else if (opponentBattlePet.stats.speed > opponentBattlePet.stats.speed) {
+                } else if (opponentBattlePet.stats.speed > challengerBattlePet.stats.speed) {
                     firstTurnUser = opponentUser;
                     turnMessage = `**${opponentBattlePet.name}** is faster and gets the first move!`;
                 } else {
@@ -126,7 +194,7 @@ module.exports = {
                     id: battleId1,
                     turn: firstTurnUser.id,
                     participants: new Map([
-                        [message.author.id, { user: message.author, pet: challengerBattlePet, originalPetId: challengerPetDoc._id }],
+                        [challengerId, { user: message.author, pet: challengerBattlePet, originalPetId: challengerPetDoc._id }],
                         [opponentUser.id, { user: opponentUser, pet: opponentBattlePet, originalPetId: opponentPetDoc._id }]
                     ]),
                 };
@@ -155,8 +223,8 @@ module.exports = {
                 await message.channel.send('The challenge was declined.');
             }
         } catch (err) {
-            console.log(err); // Log the full error for debugging
-            await message.channel.send('The challenge expired without a response or a pet was not chosen in time.');
+            console.log(err);
+            await message.channel.send('The challenge expired or something went wrong.');
         }
     },
 };

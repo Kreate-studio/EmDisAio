@@ -1,12 +1,11 @@
 const resolveAttack = (attacker, defender, ability) => {
     const attackMessage = [];
-    let damage = 0;
 
     // Check for miss
     const hitChance = ability.accuracy || 95; // Default 95% accuracy
     if (Math.random() * 100 > hitChance) {
         attackMessage.push(`${attacker.name} used **${ability.name}**, but it missed!`);
-        return { damage, newDefenderHealth: defender.stats.hp, message: attackMessage.join('\n') };
+        return { damage: 0, newDefenderHealth: defender.stats.hp, message: attackMessage.join('\n') };
     }
 
     // Calculate base damage
@@ -15,13 +14,18 @@ const resolveAttack = (attacker, defender, ability) => {
     // Check for critical hit
     const criticalChance = 5; // 5% chance
     const isCritical = Math.random() * 100 < criticalChance;
-    damage = isCritical ? baseDamage * 1.5 : baseDamage; // 50% extra damage
+    const rawDamage = isCritical ? baseDamage * 1.5 : baseDamage;
 
     // Apply defense
-    damage = Math.round(damage - (defender.stats.defense * 0.5));
-    if (damage < 1 && ability.effect.damage > 0) damage = 1;
-
-    // Apply status effects
+    const defenseMitigation = Math.round(defender.stats.defense * 0.5);
+    let finalDamage = Math.round(rawDamage) - defenseMitigation;
+    if (finalDamage < 1 && ability.effect.damage > 0) {
+        finalDamage = 1;
+    } else if (finalDamage < 0) {
+        finalDamage = 0;
+    }
+    
+    // Apply status effects from the move
     if (ability.effect.status) {
         const status = ability.effect.status;
         if (!defender.statusEffects.some(e => e.type === status.type)) {
@@ -31,10 +35,14 @@ const resolveAttack = (attacker, defender, ability) => {
     }
 
     // Final damage calculation and message
-    const newDefenderHealth = defender.stats.hp - damage;
-    attackMessage.unshift(`${attacker.name} uses **${ability.name}** and deals **${damage}** damage to ${defender.name}.${isCritical ? ' It was a critical hit!' : ''}`);
+    const newDefenderHealth = defender.stats.hp - finalDamage;
+    attackMessage.unshift(
+        `${attacker.name} uses **${ability.name}**.${isCritical ? ' It was a critical hit!' : ''}\n` +
+        `Raw Damage: **${Math.round(rawDamage)}**. ${defender.name}'s Defense Blocked: **${defenseMitigation}**.\n`+
+        `Final Damage: **${finalDamage}**.`
+    );
 
-    return { damage, newDefenderHealth, message: attackMessage.join('\n') };
+    return { damage: finalDamage, newDefenderHealth, message: attackMessage.join('\n') };
 };
 
 module.exports = { resolveAttack };

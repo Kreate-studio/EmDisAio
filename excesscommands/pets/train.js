@@ -5,8 +5,10 @@ const { getEconomyProfile, updateWallet } = require('../../models/economy');
 const TRAINING_COST = 50;
 const COOLDOWN_MINUTES = 5;
 
-async function trainPet(interaction, pet) {
-    const userId = interaction.user.id;
+async function trainPet(source, pet) {
+    const userId = source.user?.id || source.author.id;
+    const isInteraction = source.isMessageComponent && typeof source.isMessageComponent === 'function';
+
     const now = new Date();
     if (pet.cooldowns.train) {
         const lastTrain = new Date(pet.cooldowns.train);
@@ -14,30 +16,35 @@ async function trainPet(interaction, pet) {
 
         if (diffMinutes < COOLDOWN_MINUTES) {
             const remainingTime = COOLDOWN_MINUTES - diffMinutes;
-            return interaction.reply({ content: `${pet.name} is tired. It needs to rest for **${remainingTime} more minute(s)** before it can train again.`, ephemeral: true });
+            const content = `${pet.name} is tired. It needs to rest for **${remainingTime} more minute(s)** before it can train again.`;
+            return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
         }
     }
 
     if (pet.isDead) {
-        return interaction.reply({ content: `You cannot train a defeated pet. Please revive it first.`, ephemeral: true });
+        const content = `You cannot train a defeated pet. Please revive it first.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     if (pet.stats.energy < 30) {
-        return interaction.reply({ content: `${pet.name} is too tired to train. It needs to rest.`, ephemeral: true });
+        const content = `${pet.name} is too tired to train. It needs to rest.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     if (pet.stats.hunger < 15) {
-        return interaction.reply({ content: `${pet.name} is too hungry to train. It needs to be fed.`, ephemeral: true });
+        const content = `${pet.name} is too hungry to train. It needs to be fed.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     const profile = await getEconomyProfile(userId);
     if (profile.wallet < TRAINING_COST) {
-        return interaction.reply({ content: `You don\'t have enough money to train your pet. Training costs $${TRAINING_COST}.`, ephemeral: true });
+        const content = `You don't have enough money to train your pet. Training costs $${TRAINING_COST}.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     await updateWallet(userId, -TRAINING_COST);
 
-    const xpGained = Math.floor(Math.random() * (30 - 15 + 1)) + 15; // Random XP between 15 and 30
+    const xpGained = Math.floor(Math.random() * (30 - 15 + 1)) + 15;
     const leveledUp = await pet.addXP(xpGained);
 
     pet.stats.energy -= 30;
@@ -60,10 +67,10 @@ async function trainPet(interaction, pet) {
         { name: 'Hunger', value: `-15 (Current: ${pet.stats.hunger})`, inline: true },
     );
 
-    if (interaction.isMessageComponent()) {
-        await interaction.update({ content: ' ', embeds: [embed], components: [] });
+    if (isInteraction) {
+        await source.update({ content: ' ', embeds: [embed], components: [] });
     } else {
-        await interaction.reply({ embeds: [embed] });
+        await source.reply({ embeds: [embed] });
     }
 }
 
@@ -77,7 +84,7 @@ module.exports = {
         if (petName) {
             const pet = await Pet.findOne({ ownerId: userId, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
             if (!pet) {
-                return message.reply(`You don\'t have a pet named "${petName}".`);
+                return message.reply(`You don't have a pet named "${petName}".`);
             }
             return trainPet(message, pet);
         } else {
