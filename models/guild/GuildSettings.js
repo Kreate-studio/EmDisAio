@@ -8,4 +8,6 @@ const guildSettingsSchema = new Schema({
     // ... other guild-specific settings can be added here
 });
 
-module.exports = model('GuildSettings', guildSettingsSchema);
+const GuildSettings = model('GuildSettings', guildSettingsSchema);
+
+module.exports = { GuildSettings };

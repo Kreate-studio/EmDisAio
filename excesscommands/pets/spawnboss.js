@@ -2,27 +2,66 @@ const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, Permis
 const { Event: EventModel } = require('../../models/pets/events');
 const { Pet } = require('../../models/pets/pets');
 const { updateGold, addToInventory } = require('../../models/economy');
-const GuildSettings = require('../../models/guild/GuildSettings');
+const { GuildSettings } = require('../../models/guild/GuildSettings');
+const petShopItems = require('../../data/petShopItems');
+const { v4: uuidv4 } = require('uuid');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function concludeBattle(thread, eventData, participantPets) {
     await sleep(3000);
 
+    const petUpdatePromises = participantPets.map(p => {
+        const finalHp = Math.max(0, p.currentHp);
+        const isDead = finalHp <= 0;
+        return Pet.findByIdAndUpdate(p.petId, {
+            $set: {
+                'stats.hp': finalHp,
+                'isDead': isDead
+            },
+            $inc: {
+                'stats.energy': -50
+            }
+        });
+    });
+
+    await Promise.all(petUpdatePromises);
+    if (participantPets.length > 0) {
+        await thread.send('The health and energy of all participating pets have been updated.');
+    }
+
     if (eventData.bossHp <= 0) {
         const victoryEmbed = new EmbedBuilder().setTitle(`🎉 ${eventData.name} has been defeated! 🎉`).setDescription('The pets fought valiantly and emerged victorious! Distributing rewards...').setColor('#00FF00').setTimestamp();
         await thread.send({ embeds: [victoryEmbed] });
 
         const { gold, item, xp } = eventData.rewards;
+        const allItems = Object.values(petShopItems).flat();
+        const itemData = allItems.find(i => i.id === item);
+
+        if (!itemData) {
+            console.error(`Could not find item with id: ${item}`);
+        }
+        
         const rewardPromises = Array.from(eventData.participants.entries()).map(async ([userId, pData]) => {
             if (pData.petId) {
-                await updateGold(userId, gold);
-                await addToInventory(userId, { id: item, uniqueId: `${Date.now()}-${userId}` });
-                await Pet.findByIdAndUpdate(pData.petId, { $inc: { xp } });
+                const promises = [
+                    updateGold(userId, gold),
+                    Pet.findByIdAndUpdate(pData.petId, { $inc: { xp } })
+                ];
+                if (itemData) {
+                    promises.push(addToInventory(userId, { ...itemData, uniqueId: uuidv4() }));
+                }
+                await Promise.all(promises);
             }
         });
         await Promise.all(rewardPromises);
-        await thread.send(`All participants received **${gold} Gold**, **1x ${item}**, and their pet gained **${xp} XP**!`);
+
+        let rewardMessage = `All participants received **${gold} Gold** and their pet gained **${xp} XP**!`;
+        if (itemData) {
+            rewardMessage = `All participants received **${gold} Gold**, **1x ${itemData.name}**, and their pet gained **${xp} XP**!`;
+        }
+        await thread.send(rewardMessage);
+
     } else {
         await thread.send({ embeds: [new EmbedBuilder().setTitle(`☠️ The pets have been defeated. ☠️`).setDescription(`**${eventData.name}** was too strong and has escaped.`).setColor('#FF0000').setTimestamp()] });
     }
@@ -101,7 +140,7 @@ async function startAutomatedBattle(client, eventId, guildId, lobbyMessage) {
 }
 
 module.exports = {
-    name: 'spawn-boss',
+    name: 'spawnboss',
     description: 'Spawns a world boss.',
     async execute(message) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;

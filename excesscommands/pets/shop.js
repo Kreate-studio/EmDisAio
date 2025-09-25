@@ -6,6 +6,16 @@ const { v4: uuidv4 } = require('uuid');
 
 const allItems = Object.values(petShopItems).flat();
 
+const rarityColors = {
+    'Common': '#FFFFFF',
+    'Uncommon': '#2ECC71',
+    'Rare': '#3498DB',
+    'Epic': '#9B59B6',
+    'Legendary': '#F1C40F',
+    'Mythic': '#E67E22',
+    'Exclusive': '#E74C3C'
+};
+
 const getItemsByCategory = (category) => {
     if (category === 'all') return allItems;
     if (category === 'pets') return allItems.filter(item => item.type === 'pet');
@@ -23,11 +33,15 @@ const generateEmbed = (item, page, totalPages) => {
 
     const embed = new EmbedBuilder()
         .setTitle(`🐾 Pet Shop - ${item.category}`)
-        .setColor('#4CAF50')
+        .setColor(rarityColors[item.rarity] || '#FFFFFF')
         .setImage(item.image)
         .setFooter({ text: `Item ${page + 1} of ${totalPages}` });
 
-    let description = `**${item.name}**\n*${item.description}*\n\n**Price:** ${priceString}`;
+    let description = `**${item.name}**`;
+    if (item.quantity) {
+        description += ` (x${item.quantity})`;
+    }
+    description += `\n*${item.description}*\n\n**Rarity:** ${item.rarity}\n**Price:** ${priceString}`;
     if (item.stats) { // For pets
         description += `\n**Stats:** Atk: ${item.stats.attack}, Def: ${item.stats.defense}, Spd: ${item.stats.speed}`;
     }
@@ -68,45 +82,18 @@ async function handlePetPurchase(interaction, item) {
     }
 
     const userId = interaction.user.id;
-    const profile = await getEconomyProfile(userId);
-
-    if (item.currency === 'gold') {
-        if (profile.gold < item.price) {
-            return interaction.reply({ content: 'You do not have enough gold for this item.', ephemeral: true });
-        }
-    } else {
-        if (profile.wallet < item.price) {
-            return interaction.reply({ content: `You need $${item.price.toLocaleString()}, but you only have $${profile.wallet.toLocaleString()}.`, ephemeral: true });
-        }
-    }
-    
-    if (item.currency === 'gold') {
-        await updateGold(userId, -item.price);
-    } else {
-        await updateWallet(userId, -item.price);
+    const userPets = await Pet.find({ ownerId: userId });
+    if (userPets.length >= 10) { // MAX_PETS
+        return interaction.reply({ content: 'You have reached the maximum number of pets.', ephemeral: true });
     }
 
-    const newPet = new Pet({
-        petId: uuidv4(),
-        ownerId: userId,
-        name: item.name,
-        species: item.species,
-        rarity: item.rarity,
-        stats: {
-            hp: 100,
-            attack: item.stats.attack,
-            defense: item.stats.defense,
-            speed: item.stats.speed,
-            hunger: 100,
-            happiness: 100,
-            energy: 100,
-        },
-        abilities: item.abilities,
-        specialAbilities: item.specialAbilities,
-    });
-    await newPet.save();
-
-    await interaction.reply({ content: `🎉 You have successfully purchased a new pet: **${item.name}**!`, ephemeral: true });
+    try {
+        const newPet = await Pet.createPet(userId, item);
+        await interaction.reply({ content: `🎉 You have successfully purchased a new pet: **${newPet.name}**!`, ephemeral: true });
+    } catch (error) {
+        console.error('Pet purchase failed:', error);
+        await interaction.reply({ content: error.message, ephemeral: true });
+    }
 }
 
 async function handlePurchase(interaction, item) {
@@ -117,9 +104,11 @@ async function handlePurchase(interaction, item) {
     if (item.type === 'pet') {
         return handlePetPurchase(interaction, item);
     }
+
     const userId = interaction.user.id;
     const profile = await getEconomyProfile(userId);
 
+    // Check balance
     if (item.currency === 'gold') {
         if (profile.gold < item.price) {
             return interaction.reply({ content: 'You do not have enough gold for this item.', ephemeral: true });
@@ -129,34 +118,40 @@ async function handlePurchase(interaction, item) {
             return interaction.reply({ content: `You need $${item.price.toLocaleString()}, but you only have $${profile.wallet.toLocaleString()}.`, ephemeral: true });
         }
     }
+    
+    const purchaseQuantity = item.quantity || 1;
 
     if (!item.stackable && profile.inventory.some(i => i.id === item.id)) {
         return interaction.reply({ content: `You can only own one **${item.name}**.`, ephemeral: true });
     }
 
+    // Deduct currency
     if (item.currency === 'gold') {
         await updateGold(userId, -item.price);
     } else {
         await updateWallet(userId, -item.price);
     }
 
-    const itemData = { 
-        id: item.id, 
-        name: item.name, 
-        type: item.type, 
+    // Add item(s) to inventory
+    const itemData = {
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        rarity: item.rarity,
+        image: item.image,
         purchaseDate: new Date(),
-        purchasePrice: item.price
+        purchasePrice: item.price,
     };
-    await addToInventory(userId, itemData);
+    await addToInventory(userId, itemData, purchaseQuantity);
 
-    await interaction.reply({ content: `🎉 You have successfully purchased **1x ${item.name}**!`, ephemeral: true });
+    await interaction.reply({ content: `🎉 You have successfully purchased **${item.name}** (x${purchaseQuantity})!`, ephemeral: true });
 }
 
 
 module.exports = {
-    name: 'petshop',
-    description: 'Visit the pet shop to buy pets, eggs, and supplies.',
-    aliases: ['pshop'],
+    name: 'shop',
+    description: 'Browse pets, eggs, and supplies.',
+    aliases: ['s'],
 
     async execute(message, args) {
         let currentCategory = 'all';

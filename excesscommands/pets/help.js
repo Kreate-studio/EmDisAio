@@ -3,48 +3,66 @@ const { EmbedBuilder } = require('discord.js');
 module.exports = {
     name: 'help',
     description: 'Displays a list of all available pet commands.',
+    aliases: ['h'],
     execute(message) {
         const embed = new EmbedBuilder()
             .setTitle('🐾 Pet Command Help')
-            .setDescription('Here is a list of all available commands for managing your pets.')
+            .setDescription('Here is a list of all available commands for managing your pets. You can use `$p` as an alias for `$pet`.')
             .setColor('#4E4EC8')
             .addFields(
                 {
-                    name: ' Pet Management',
-                    value: '\`$pet list\` - View all of your pets.\n' +
-                           '\`$pet info <pet_name>\` - Get detailed stats for a pet.\n' +
-                           '\`$pet rename <pet_name> <new_name>\` - Rename one of your pets.\n' +
-                           '\`$pet inventory\` - See your pet-related items (food, toys, eggs).',
+                    name: 'General Commands',
+                    value: '`$pet help ` - Displays the list of available commands.\n' +
+                           '`$pet info  <pet_name>` - Shows detailed information about a specific pet.\n' +
+                           '`$pet list ` - Lists all the pets you currently own.\n' +
+                           '`$pet inventory ` - Displays your inventory of pet-related items.\n' +
+                           '`$pet set <pet_name>` - Sets a pet as your active battle companion.',
                     inline: false
                 },
                 {
-                    name: '🛒 Shop & Items',
-                    value: '\`$pet shop\` - Browse pets, eggs, and supplies.\n' +
-                           '\`$pet buy <item_id> [amount]\` - Purchase an item.\n' +
-                           '\`$pet buyegg <egg_type>\` - Buy a new pet egg.\n' +
-                           '\`$pet hatch <egg>\` - Hatch an egg from your inventory.',
+                    name: 'Pet Care',
+                    value: '`$pet feed` - Feeds your active pet to restore hunger.\n' +
+                           '`$pet play` - Plays with your pet to boost happiness.\n' +
+                           '`$pet rest` - Allows your pet to rest and regain energy.\n' +
+                           '`$pet heal` - Heals your pet using medicine.\n' +
+                           '`$pet train` - Trains your pet to improve its stats.',
                     inline: false
                 },
                 {
-                    name: '❤️ Pet Care',
-                    value: '\`$pet feed <pet_name>\` - Feed your pet to restore hunger.\n' +
-                           '\`$pet play <pet_name>\` - Play with your pet to increase happiness.\n' +
-                           '\`$pet heal <pet_name>\` - Heal your pet when it is injured.\n' +
-                           '\`$pet rest <pet_name>\` - Allow your pet to rest and recover energy.',
+                    name: 'Adventure & Evolution',
+                    value: '`$pet adventure  <pet_name>` - Sends your pet on an adventure to find items and XP.\n' +
+                           '`$pet evolve  <pet_name>` - Evolves your pet to its next stage.',
                     inline: false
                 },
                 {
-                    name: '⚔️ Battle & Training',
-                    value: '\`$pet train <pet_name>\` - Train your pet to improve its stats.\n' +
-                           '\`$pet adventure <pet_name>\` - Send your pet on an adventure.\n' +
-                           '\`$pet evolve <pet_name>\` - Evolve your pet to a new form.\n' +
-                           '\`$pet battle @user <your_pet_name>\` - Challenge another user to a battle.\n' +
-                           '\`$pet battle move <ability_name>\` - Make a move in a battle.',
+                    name: 'Item & Trading',
+                    value: '`$pet shop ` - Opens the pet shop to browse and purchase pets, eggs, and supplies.\n' +
+                           '`$pet buy  <item_id> [quantity]` - Buys a specified quantity of an item from the shop.\n' +
+                           '`$pet use <item_name>` - Uses an item from your inventory.\n' +
+                           '`$pet hatch <egg_name>` - Hatches an egg to reveal a new pet.\n' +
+                           '`$pet gift <@user> <item_name>` - Gifts an item or pet to another user.\n' +
+                           '`$pet trade <@user> <your_pet> <their_pet>` - Initiates a trade with another user to exchange pets.',
                     inline: false
                 },
                 {
-                    name: '🎉 World Events',
-                    value: '\`$pet event\` - View the current world event.',
+                    name: 'Battle Commands',
+                    value: '`$pet battle <@user> <pet_name>` - Challenges another user to a pet battle.\n' +
+                           '`$pet move <move_name>` - Executes a specific move during a battle.',
+                    inline: false
+                },
+                {
+                    name: 'World Events',
+                    value: '`$pet event` - Displays information about the current world event.\n' +
+                           '`$pet boss` - Joins the ongoing boss battle.',
+                    inline: false
+                },
+                {
+                    name: 'Admin Commands',
+                    value: '`$pet spawnboss` - Spawns a world boss for players to battle.\n' +
+                           '`$pet give <@user> <item_name> [quantity]` - Gives a specified item or pet to a user.\n' +
+                           '`$pet fixinventory` - Scans and repairs any corrupted or invalid items in user inventories.\n' +
+                           '`$pet clearcorrupted` - Removes all glitched or broken pets from the database.\n' +
+                           '`$pet clear` - **[DANGEROUS]** Deletes all pet-related data for a user.',
                     inline: false
                 }
             );

@@ -1,36 +1,32 @@
 const { EmbedBuilder } = require('discord.js');
 const { Pet } = require('../../models/pets/pets');
-const rarityColors = require('../../utils/rarityColors');
 
 module.exports = {
     name: 'rename',
-    description: 'Renames one of your pets.',
+    description: 'Change the name of your pet.',
+    aliases: ['name'],
     async execute(message, args) {
-        const combinedArgs = args.join(' ');
-        const [oldName, newName] = combinedArgs.split(',').map(name => name.trim());
+        const [petName, ...newNameParts] = args;
+        const newName = newNameParts.join(' ');
 
-        if (!oldName || !newName) {
-            const embed = new EmbedBuilder()
-                .setColor('#ff0000')
-                .setDescription('Usage: `$pet rename <old name>, <new name>`');
-            return message.reply({ embeds: [embed] });
+        if (!petName || !newName) {
+            return message.reply('Please provide the current name of your pet and its new name. Usage: `$pet rename <current-name> <new-name>`');
         }
 
-        const pet = await Pet.findOne({ ownerId: message.author.id, name: oldName });
+        const pet = await Pet.findOne({ ownerId: message.author.id, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
 
         if (!pet) {
-            const embed = new EmbedBuilder()
-                .setColor('#ff0000')
-                .setDescription(`You don\'t own a pet named "${oldName}".`);
-            return message.reply({ embeds: [embed] });
+            return message.reply(`You don\'t own a pet named \"${petName}\".`);
         }
-        const oldPetName = pet.name;
+
+        const oldName = pet.name;
         pet.name = newName;
         await pet.save();
 
         const embed = new EmbedBuilder()
-            .setColor(rarityColors[pet.rarity.toLowerCase()] || rarityColors.common)
-            .setDescription(`🏷️ Your pet **${oldPetName}** has been renamed to **${newName}**!`)
+            .setTitle('Pet Renamed!')
+            .setDescription(`You have renamed **${oldName}** to **${newName}**.`)
+            .setColor('#00FF00');
 
         message.reply({ embeds: [embed] });
     },

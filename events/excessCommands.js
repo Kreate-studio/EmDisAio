@@ -28,13 +28,25 @@ module.exports = {
         let finalArgs = args;
         let effectiveCommandName = commandName;
 
-        if (commandName === 'pet' && config.excessCommands.pets) {
+        if ((commandName === 'pet' || commandName === 'p') && config.excessCommands.pets) {
             const subCommandName = (args.length > 0 ? args.shift().toLowerCase() : 'help');
             const commandPath = path.join(excessCommandsPath, 'pets', `${subCommandName}.js`);
 
             if (fs.existsSync(commandPath)) {
                 command = require(commandPath);
                 effectiveCommandName = `${commandName} ${subCommandName}`;
+            } else {
+                // Check for aliases
+                const petCommandsPath = path.join(excessCommandsPath, 'pets');
+                const commandFiles = fs.readdirSync(petCommandsPath).filter(file => file.endsWith('.js'));
+                for (const file of commandFiles) {
+                    const cmd = require(path.join(petCommandsPath, file));
+                    if (cmd.aliases && cmd.aliases.includes(subCommandName)) {
+                        command = cmd;
+                        effectiveCommandName = `${commandName} ${cmd.name}`;
+                        break;
+                    }
+                }
             }
         } else {
             const commandFolders = fs.readdirSync(excessCommandsPath, { withFileTypes: true })
@@ -63,7 +75,7 @@ module.exports = {
 
         try {
             const isDisabled = await DisabledCommand.findOne({ guildId: message.guild.id, commandName: command.name });
-            const isGroupDisabled = (commandName === 'pet') ? await DisabledCommand.findOne({ guildId: message.guild.id, commandName: 'pet' }) : null;
+            const isGroupDisabled = (commandName === 'pet' || commandName === 'p') ? await DisabledCommand.findOne({ guildId: message.guild.id, commandName: 'pet' }) : null;
 
             if (isDisabled || isGroupDisabled) {
                 const disabledName = isGroupDisabled ? 'pet' : command.name;

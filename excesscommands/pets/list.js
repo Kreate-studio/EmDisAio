@@ -1,62 +1,77 @@
-const { EmbedBuilder } = require('discord.js');
-const petShopItems = require('../../data/petShopItems');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Pet } = require('../../models/pets/pets');
+const rarityColors = require('../../utils/rarityColors');
 
 module.exports = {
-    name: 'petlist',
-    description: 'List all available pets and items in the shop.',
-    aliases: ['pl'],
+    name: 'list',
+    description: 'Displays a visual list of all your pets.',
+    aliases: ['l'],
     async execute(message, args) {
-        const embed = new EmbedBuilder()
-            .setTitle('🐾 Pet Shop List 🐾')
-            .setColor('#4CAF50');
+        const userId = message.author.id;
+        const userPets = await Pet.find({ ownerId: userId }).sort({ name: 1 }); // Sort pets by name
 
-        const categoryOrder = ["Pets", "Pet Eggs", "Pet Supplies", "Pet Toys"];
-
-        for (const category of categoryOrder) {
-            const items = petShopItems[category];
-            if (!items || items.length === 0) continue;
-
-            const itemStrings = items.map(item => {
-                const priceString = item.rarity === 'Exclusive'
-                    ? 'Exclusive (Admin Give Only)'
-                    : item.price === null
-                        ? 'Not for sale'
-                        : item.currency === 'gold'
-                            ? `${item.price} gold`
-                            : `$${item.price.toLocaleString()}`;
-                return `**${item.name}** - ${priceString}\n*${item.description}*\n\n`;
-            });
-
-            let currentFieldValue = '';
-            const fields = [];
-            for (const itemString of itemStrings) {
-                if (currentFieldValue.length + itemString.length <= 1024) {
-                    currentFieldValue += itemString;
-                } else {
-                    fields.push({ name: category, value: currentFieldValue });
-                    currentFieldValue = itemString;
-                }
-            }
-            if (currentFieldValue.length > 0) {
-                fields.push({ name: category, value: currentFieldValue });
-            }
-
-            if (fields.length > 1) {
-                for (let i = 0; i < fields.length; i++) {
-                    fields[i].name = `${category} (Part ${i + 1})`;
-                }
-            }
-            embed.addFields(fields);
+        if (userPets.length === 0) {
+            return message.reply('You do not have any pets yet. Use `$pet shop` to see available pets!');
         }
 
-        if (!embed.data.fields || embed.data.fields.length === 0) {
-            embed.setDescription("No items found.");
-        }
+        const totalPages = userPets.length; // One pet per page
+        let page = 0;
 
-        if (embed.data.fields && embed.data.fields.length > 25) {
-            return message.reply('The list is too long to display. Please try a more specific command.');
-        }
+        const generateEmbed = (pageIndex) => {
+            const currentPet = userPets[pageIndex];
 
-        return message.reply({ embeds: [embed] });
-    },
+            const rarityColor = rarityColors[currentPet.rarity.toLowerCase()] || '#FFFFFF';
+
+            const embed = new EmbedBuilder()
+                .setTitle(`🐾 ${currentPet.name} 🐾`)
+                .setColor(rarityColor)
+                .setImage(currentPet.image)
+                .addFields(
+                    { name: 'Species', value: currentPet.species, inline: true },
+                    { name: 'Rarity', value: currentPet.rarity, inline: true },
+                    { name: 'Level', value: `${currentPet.level}`, inline: true },
+                    { name: 'HP', value: `${currentPet.stats.hp}/${currentPet.stats.maxHealth}`, inline: true },
+                    { name: 'Attack', value: `${currentPet.stats.attack}`, inline: true },
+                    { name: 'Status', value: currentPet.isDead ? 'Defeated' : 'Ready', inline: true }
+                )
+                .setFooter({ text: `Pet ${pageIndex + 1} of ${totalPages}` });
+
+            return embed;
+        };
+
+        // Disable buttons if there's only one pet
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('prev_page').setLabel('Previous').setStyle(ButtonStyle.Secondary).setDisabled(true),
+            new ButtonBuilder().setCustomId('next_page').setLabel('Next').setStyle(ButtonStyle.Primary).setDisabled(totalPages <= 1)
+        );
+
+        const reply = await message.reply({ embeds: [generateEmbed(page)], components: [row] });
+
+        if (totalPages <= 1) return; // No need for a collector if only one page
+
+        const filter = i => i.user.id === message.author.id;
+        const collector = reply.createMessageComponentCollector({ filter, time: 60000 });
+
+        collector.on('collect', async i => {
+            if (i.customId === 'prev_page') {
+                page--;
+            } else if (i.customId === 'next_page') {
+                page++;
+            }
+
+            // Update button states
+            row.components[0].setDisabled(page === 0);
+            row.components[1].setDisabled(page === totalPages - 1);
+
+            await i.update({ embeds: [generateEmbed(page)], components: [row] });
+        });
+
+        collector.on('end', () => {
+            const disabledRow = new ActionRowBuilder().addComponents(
+                row.components[0].setDisabled(true),
+                row.components[1].setDisabled(true)
+            );
+            reply.edit({ components: [disabledRow] });
+        });
+    }
 };

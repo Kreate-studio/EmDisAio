@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { PermissionsBitField } = require('discord.js');
-const GuildSettings = require('../../models/guild/GuildSettings');
+const { GuildSettings } = require('../../models/guild/GuildSettings'); // Corrected import
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -31,7 +31,8 @@ module.exports = {
             await interaction.reply({ content: `✅ Battle channel has been set to ${channel}.` });
         } catch (error) {
             console.error('Error setting battle channel:', error);
-            await interaction.reply({ content: 'An error occurred while setting the battle channel. Please try again.', ephemeral: true });
+            // The error now includes the actual error message for better debugging
+            await interaction.reply({ content: `An error occurred while setting the battle channel: ${error.message}`, ephemeral: true });
         }
     },
 };

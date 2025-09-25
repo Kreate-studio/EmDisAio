@@ -80,38 +80,41 @@ module.exports = {
     "Pet Supplies": [
         {
             id: 'pet_food_pack',
-            name: 'Pet Food Pack (10)',
+            name: 'Pet Food',
             price: 1,
             currency: 'gold',
             description: 'A pack of 10 nutritious pet food bags.',
             image: 'https://i.ibb.co/HTNsNsN5/food.png',
             category: 'Pet Supplies',
             type: 'consumable',
-            stackable: true
+            stackable: true,
+            quantity: 10
         },
         {
             id: 'pet_medicine_pack',
-            name: 'Pet Medicine Pack (5)',
+            name: 'Pet Medicine',
             price: 1,
             currency: 'gold',
             description: 'A pack of 5 doses of medicine to heal your pet.',
             image: 'https://i.ibb.co/zWyVSFnR/med.png',
             category: 'Pet Supplies',
             type: 'consumable',
-            stackable: true
+            stackable: true,
+            quantity: 5
         }
     ],
     "Pet Toys": [
         {
             id: 'pet_toy_pack',
-            name: 'Pet Toy Pack (10)',
+            name: 'Pet Toy',
             price: 1,
             currency: 'gold',
             description: 'A pack of 10 assorted pet toys.',
             image: 'https://i.ibb.co/zTLx6PxK/toy.png',
             category: 'Pet Toys',
             type: 'consumable',
-            stackable: true
+            stackable: true,
+            quantity: 10
         }
     ]
 };

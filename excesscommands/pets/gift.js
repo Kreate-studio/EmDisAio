@@ -1,11 +1,10 @@
 const { EmbedBuilder } = require('discord.js');
-const Pet = require('../../models/pets/pets');
-const { getEconomyProfile, updateEconomyProfile } = require('../../models/economy');
+const { Pet } = require('../../models/pets/pets');
+const { getEconomyProfile, addToInventory, removeFromInventory } = require('../../models/economy');
 
 module.exports = {
     name: 'gift',
     description: 'Gift a pet, egg, or supply to another user.',
-    aliases: [],
     async execute(message, args) {
         const targetUser = message.mentions.users.first();
         if (!targetUser) {
@@ -24,7 +23,35 @@ module.exports = {
         const senderId = message.author.id;
         const receiverId = targetUser.id;
 
-        // Check for pet
+        if (itemName === 'best pet') {
+            const userPets = await Pet.find({ ownerId: senderId });
+            if (userPets.length === 0) {
+                return message.reply("You don't have any pets to gift!");
+            }
+
+            userPets.sort((a, b) => {
+                const rarityOrder = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Exclusive'];
+                const rarityA = rarityOrder.indexOf(a.rarity);
+                const rarityB = rarityOrder.indexOf(b.rarity);
+                if (rarityB !== rarityA) return rarityB - rarityA;
+                if (b.level !== a.level) return b.level - a.level;
+                const totalStatsA = a.stats.attack + a.stats.defense + a.stats.speed;
+                const totalStatsB = b.stats.attack + b.stats.defense + b.stats.speed;
+                return totalStatsB - totalStatsA;
+            });
+
+            const petToGift = userPets[0];
+            petToGift.ownerId = receiverId;
+            await petToGift.save();
+
+            const embed = new EmbedBuilder()
+                .setTitle('Pet Gifted!')
+                .setDescription(`You have gifted your best pet, **${petToGift.name}**, to **${targetUser.username}**!`)
+                .setColor('#00FF00');
+            return message.reply({ embeds: [embed] });
+        }
+
+        // Check for pet by name
         const pet = await Pet.findOne({ ownerId: senderId, name: new RegExp(`^${itemName}$`, 'i') });
 
         if (pet) {
@@ -38,13 +65,9 @@ module.exports = {
         const itemIndex = senderProfile.inventory.findIndex(item => item.name.toLowerCase() === itemName);
 
         if (itemIndex > -1) {
-            const [item] = senderProfile.inventory.splice(itemIndex, 1);
-
-            const receiverProfile = await getEconomyProfile(receiverId);
-            receiverProfile.inventory.push(item);
-
-            await updateEconomyProfile(senderId, { inventory: senderProfile.inventory });
-            await updateEconomyProfile(receiverId, { inventory: receiverProfile.inventory });
+            const item = senderProfile.inventory[itemIndex];
+            await removeFromInventory(senderId, item.uniqueId, 1);
+            await addToInventory(receiverId, item, 1);
 
             return message.reply(`You have gifted **1x ${item.name}** to **${targetUser.username}**.`);
         }

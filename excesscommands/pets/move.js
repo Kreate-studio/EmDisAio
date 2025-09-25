@@ -1,74 +1,123 @@
 const { EmbedBuilder } = require('discord.js');
-const Pet = require('../../models/pets/pets');
+const { Pet } = require('../../models/pets/pets');
+const GuildSettings = require('../../models/guild/guildSettings'); // Corrected Path
+const { activeBattles } = require('./battleState');
+const { resolveAttack } = require('../../utils/battleUtils');
 
-// This should be the same in-memory store as in battle.js
-const activeBattles = new Map();
-
-const rarityMultipliers = {
-    common: 1,
-    rare: 1.2,
-    epic: 1.5,
-    legendary: 2,
+// Embedded rarityColors object
+const rarityColors = {
+    common: '#BFC9CA',
+    rare: '#5DADE2',
+    epic: '#AF7AC5',
+    legendary: '#F4D03F',
+    mythic: '#E74C3C',
+    exclusive: '#F39C12'
 };
+
+// Function to apply status effects at the start of a turn
+const applyStatusEffects = (pet) => {
+    const messages = [];
+    let damageFromEffects = 0;
+
+    pet.statusEffects = pet.statusEffects.filter(effect => {
+        if (effect.type === 'poison') {
+            const poisonDamage = Math.round(pet.stats.maxHealth * 0.05); // 5% of max health
+            damageFromEffects += poisonDamage;
+            messages.push(`${pet.name} takes ${poisonDamage} damage from poison.`);
+        }
+        
+        effect.turns -= 1;
+        return effect.turns > 0;
+    });
+
+    return { damageFromEffects, messages };
+};
+
 
 module.exports = {
     name: 'move',
-    description: 'Use a move in a pet battle.',
+    description: 'Makes a move in an ongoing battle.',
     async execute(message, args) {
-        const userId = message.author.id;
-        const battleId = [...activeBattles.keys()].find(key => key.includes(userId));
+        const battle = [...activeBattles.values()].find(b => b.participants.has(message.author.id));
 
-        if (!battleId) {
-            return message.reply('You are not in a battle.');
+        if (!battle) {
+            return message.reply('You are not currently in a battle.');
         }
 
-        const battle = activeBattles.get(battleId);
+        const guildSettings = await GuildSettings.findOne({ guildId: message.guild.id });
+        const battleChannelId = guildSettings ? guildSettings.battleChannelId : null;
 
-        if (battle.turn !== userId) {
-            return message.reply('It is not your turn.');
+        if (battleChannelId && message.channel.id !== battleChannelId) {
+            return message.reply(`Battles can only take place in <#${battleChannelId}>.`);
         }
 
+        if (battle.turn !== message.author.id) {
+            return message.reply('It is not your turn!');
+        }
         const moveName = args.join(' ');
-        const attacker = battle.challenger.id === userId ? battle.challenger : battle.opponent;
-        const defender = battle.challenger.id === userId ? battle.opponent : battle.challenger;
+        if (!moveName) {
+            return message.reply('Usage: `$pet move <ability name>`');
+        }
+        const player = battle.participants.get(message.author.id);
+        const opponentId = [...battle.participants.keys()].find(id => id !== message.author.id);
+        const opponent = battle.participants.get(opponentId);
 
-        // For simplicity, we'll assume a basic 'attack' move
-        // In a real implementation, you would check for the pet's actual abilities
-        if (moveName.toLowerCase() !== 'attack') {
-            return message.reply('You can only use the \"attack\" move for now.');
+        // Apply status effects to the current player
+        const { damageFromEffects, messages: effectMessages } = applyStatusEffects(player.pet);
+        player.pet.stats.hp -= damageFromEffects;
+
+        if (effectMessages.length > 0) {
+            await message.channel.send(effectMessages.join('\n'));
+        }
+        
+        if (player.pet.stats.hp <= 0) {
+          // Handle player defeat due to status effects
+          // (This logic will be similar to the end-of-battle logic)
+          return; 
         }
 
-        // Damage formula
-        const damage = Math.floor(
-            (attacker.pet.stats.attack - defender.pet.stats.defense) *
-            rarityMultipliers[attacker.pet.rarity] *
-            (Math.random() * (1.15 - 0.85) + 0.85) // Random factor
-        );
+        const ability =
+            [...(player.pet.abilities || []), ...(player.pet.specialAbilities || [])]
+                .find(a => a.name.toLowerCase() === moveName.toLowerCase() && ['attack', 'active'].includes(a.type));
 
-        defender.pet.stats.hp -= damage;
-
-        let battleLog = `${attacker.pet.name} attacks ${defender.pet.name} for ${damage} damage!\n`;
-
-        if (defender.pet.stats.hp <= 0) {
-            battleLog += `${defender.pet.name} has been defeated!\n`;
-            battleLog += `${attacker.pet.name} wins the battle!`;
-
-            // Update battle records
-            await Pet.findByIdAndUpdate(attacker.pet._id, { $inc: { 'battleRecord.wins': 1 } });
-            await Pet.findByIdAndUpdate(defender.pet._id, { $inc: { 'battleRecord.losses': 1 } });
-
-            activeBattles.delete(battleId);
-
-        } else {
-            battleLog += `${defender.pet.name} has ${defender.pet.stats.hp} HP remaining.`;
-            battle.turn = defender.id; // Switch turns
+        if (!ability) {
+            return message.reply(`'${moveName}' is not a valid battle move.`);
         }
+        
+        const { newDefenderHealth, message: attackMessage } = resolveAttack(player.pet, opponent.pet, ability);
+        opponent.pet.stats.hp = newDefenderHealth > 0 ? newDefenderHealth : 0;
 
         const embed = new EmbedBuilder()
-            .setTitle('Battle Update')
-            .setDescription(battleLog)
-            .setColor('#FFA500');
+            .setColor(rarityColors[player.pet.rarity.toLowerCase()] || '#888888')
+            .setTitle('Battle Turn')
+            .setDescription(attackMessage)
+            .addFields(
+                { name: `${player.pet.name} (HP: ${player.pet.stats.hp})`, value: 'Your Turn', inline: true },
+                { name: `${opponent.pet.name} (HP: ${opponent.pet.stats.hp})`, value: 'Opponent', inline: true }
+            );
+        await message.channel.send({ embeds: [embed] });
 
-        message.reply({ embeds: [embed] });
+        if (opponent.pet.stats.hp <= 0) {
+            const winnerDoc = await Pet.findById(player.originalPetId);
+            const loserDoc = await Pet.findById(opponent.originalPetId);
+
+            winnerDoc.battleRecord.wins += 1;
+            loserDoc.battleRecord.losses += 1;
+            loserDoc.isDead = true;
+
+            await winnerDoc.save();
+            await loserDoc.save();
+
+            activeBattles.delete(battle.id);
+
+            const winEmbed = new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('🎉 Battle Over! 🎉')
+                .setDescription(`**${winnerDoc.name}** is victorious! ${loserDoc.name} has been defeated.`);
+            return message.channel.send({ embeds: [winEmbed] });
+        }
+
+        battle.turn = opponentId;
+        message.channel.send(`It is now ${opponent.user.username}'s turn!`);
     },
 };

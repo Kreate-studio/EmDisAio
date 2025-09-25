@@ -1,6 +1,8 @@
 module.exports = {
-    common: '#99AAB5',
-    rare: '#0099ff',
-    epic: '#9966cc',
-    legendary: '#ffcc00',
+    common: '#FFFFFF',
+    rare: '#00FF00',
+    epic: '#9B30FF',
+    legendary: '#FFD700',
+    mythic: '#FF00FF',
+    exclusive: '#FF4500'
 };

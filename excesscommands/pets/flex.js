@@ -1,49 +1,38 @@
 const { EmbedBuilder } = require('discord.js');
 const { Pet } = require('../../models/pets/pets');
-let rarityColors;
-try {
-    rarityColors = require('../../config').rarityColors;
-} catch (error) {
-    // It's okay if the file or property doesn't exist.
-}
-
-if (!rarityColors || Object.keys(rarityColors).length === 0) {
-    console.warn('Warning: `rarityColors` not found in `config.js` or is empty. Using default colors.');
-    rarityColors = {
-        common: '#FFFFFF',
-        rare: '#00FF00',
-        epic: '#9B30FF',
-        legendary: '#FFD700',
-        mythic: '#FF00FF',
-        exclusive: '#FF4500'
-    };
-}
+const rarityColors = require('../../utils/rarityColors');
 
 module.exports = {
     name: 'flex',
-    description: 'Show off your best pet!',
-    async execute(message) {
+    description: 'Show off your best pet or a specific pet!',
+    async execute(message, args) {
         const userId = message.author.id;
-        const userPets = await Pet.find({ ownerId: userId });
+        const petName = args.join(' ');
+        let pet;
 
-        if (userPets.length === 0) {
-            return message.reply("You don't have any pets to show off yet!");
+        if (petName) {
+            pet = await Pet.findOne({ ownerId: userId, name: { $regex: new RegExp(`^${petName}$`, 'i') } });
+            if (!pet) {
+                return message.reply(`You don\'t own a pet named \"${petName}\".`);
+            }
+        } else {
+            const userPets = await Pet.find({ ownerId: userId });
+            if (userPets.length === 0) {
+                return message.reply("You don\'t have any pets to show off yet!");
+            }
+            userPets.sort((a, b) => {
+                const rarityOrder = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Exclusive'];
+                const rarityA = rarityOrder.indexOf(a.rarity);
+                const rarityB = rarityOrder.indexOf(b.rarity);
+                if (rarityB !== rarityA) return rarityB - rarityA;
+                if (b.level !== a.level) return b.level - a.level;
+                const totalStatsA = a.stats.attack + a.stats.defense + a.stats.speed;
+                const totalStatsB = b.stats.attack + b.stats.defense + b.stats.speed;
+                return totalStatsB - totalStatsA;
+            });
+            pet = userPets[0];
         }
 
-        const sortedPets = userPets.sort((a, b) => {
-            const rarityOrder = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Exclusive'];
-            const rarityA = rarityOrder.indexOf(a.rarity);
-            const rarityB = rarityOrder.indexOf(b.rarity);
-
-            if (rarityB !== rarityA) return rarityB - rarityA;
-            if (b.level !== a.level) return b.level - a.level;
-
-            const totalStatsA = a.stats.attack + a.stats.defense + a.stats.speed;
-            const totalStatsB = b.stats.attack + b.stats.defense + b.stats.speed;
-            return totalStatsB - totalStatsA;
-        });
-
-        const pet = sortedPets[0];
         const rarityColor = rarityColors[pet.rarity.toLowerCase()] || '#FFFFFF';
 
         const embed = new EmbedBuilder()
@@ -52,12 +41,13 @@ module.exports = {
             .setImage(pet.image)
             .addFields(
                 { name: 'Rarity', value: pet.rarity, inline: true },
-                { name: 'Attack', value: `${pet.stats.attack}`.toString(), inline: true },
-                { name: 'Defense', value: `${pet.stats.defense}`.toString(), inline: true },
-                { name: 'Speed', value: `${pet.stats.speed}`.toString(), inline: true },
+                { name: 'HP', value: `${pet.stats.hp}/${pet.stats.maxHealth}`, inline: true },
+                { name: 'Attack', value: `${pet.stats.attack}`, inline: true },
+                { name: 'Defense', value: `${pet.stats.defense}`, inline: true },
+                { name: 'Speed', value: `${pet.stats.speed}`, inline: true },
                 { name: 'Status', value: pet.isDead ? 'Defeated' : 'Ready', inline: true }
             )
-            .setFooter({ text: `Owned by ${message.author.username}` });
+            .setFooter({ text: `Owned by ${message.member.displayName}` });
 
         message.reply({ embeds: [embed] });
     },

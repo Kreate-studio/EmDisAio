@@ -42,7 +42,7 @@ const formatAbility = (ability) => {
             }
         }
         if (effects.length > 0) {
-            effectDescription = effects.join(' ');
+            effectDescription = effects.map(e => `• ${e}`).join('\n');
         }
     }
 

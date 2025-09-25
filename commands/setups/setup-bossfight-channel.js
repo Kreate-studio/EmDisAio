@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { PermissionsBitField } = require('discord.js');
-const GuildSettings = require('../../models/guild/GuildSettings');
+const { GuildSettings } = require('../../models/guild/GuildSettings'); // Corrected import
 
 module.exports = {
     data: new SlashCommandBuilder()
