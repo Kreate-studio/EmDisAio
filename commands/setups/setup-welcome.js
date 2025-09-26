@@ -11,7 +11,7 @@ module.exports = {
 
         .addSubcommand(sub =>
             sub.setName('setchannel')
-                .setDescription('Enable/Disable welcome messages in a channel')
+                .setDescription('Enable/Disable and configure welcome messages in a channel')
                 .addChannelOption(option =>
                     option.setName('channel')
                         .setDescription('Select the welcome channel')
@@ -20,6 +20,18 @@ module.exports = {
                     option.setName('status')
                         .setDescription('Enable or disable channel welcome messages')
                         .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('welcome-message')
+                        .setDescription('Custom message. Use {user} to mention the new member.')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('image-url')
+                        .setDescription('URL for the image in the welcome embed.')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('embed-color')
+                        .setDescription('Hex color for the embed (e.g., #FF5733).')
+                        .setRequired(false))
         )
 
         .addSubcommand(sub =>
@@ -37,7 +49,8 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        if (interaction.isCommand && interaction.isCommand()) {
+        if (!interaction.isCommand()) return;
+
         const guild = interaction.guild;
         const serverID = guild.id;
         if (!await checkPermissions(interaction)) return;
@@ -47,7 +60,28 @@ module.exports = {
         if (subcommand === 'setchannel') {
             const channel = interaction.options.getChannel('channel');
             const status = interaction.options.getBoolean('status');
+            const welcomeMessage = interaction.options.getString('welcome-message');
+            const imageUrl = interaction.options.getString('image-url');
+            const embedColor = interaction.options.getString('embed-color');
 
+            // Basic validation for color and URL
+            if (embedColor && !/^#([0-9A-F]{6})$/i.test(embedColor)) {
+                return interaction.reply({
+                    content: '❌ Invalid color format. Please use a valid HEX color code (e.g., `#FF5733`).',
+                    ephemeral: true
+                });
+            }
+            if (imageUrl) {
+                try {
+                    new URL(imageUrl);
+                } catch (e) {
+                    return interaction.reply({
+                        content: '❌ Invalid Image URL. Please provide a valid URL starting with `http://` or `https://`.',
+                        ephemeral: true
+                    });
+                }
+            }
+            
             await WelcomeSettings.updateOne(
                 { serverId: serverID },
                 {
@@ -55,6 +89,9 @@ module.exports = {
                         serverId: serverID,
                         welcomeChannelId: channel.id,
                         channelStatus: status,
+                        welcomeMessage: welcomeMessage, // New field
+                        imageUrl: imageUrl,           // New field
+                        embedColor: embedColor,       // New field
                         ownerId: guild.ownerId
                     }
                 },
@@ -62,7 +99,7 @@ module.exports = {
             );
 
             return interaction.reply({
-                content: `📢 Welcome messages in channel have been **${status ? 'enabled' : 'disabled'}** for <#${channel.id}>.`,
+                content: `📢 Welcome messages in <#${channel.id}> have been **${status ? 'enabled' : 'disabled'}** and settings have been updated.`,
                 ephemeral: true
             });
 
@@ -95,32 +132,32 @@ module.exports = {
                     ephemeral: true
                 });
             }
-
-            const embed = new EmbedBuilder()
-                .setColor('#3498db')
-                .setTitle('📋 Welcome Settings')
+            
+            // Main settings embed
+            const settingsEmbed = new EmbedBuilder()
+                .setColor(config.embedColor || '#3498db')
+                .setTitle('📋 Current Welcome Settings')
                 .addFields(
-                    { name: 'Server ID', value: config.serverId, inline: true },
                     { name: 'Channel', value: config.welcomeChannelId ? `<#${config.welcomeChannelId}>` : 'Not set', inline: true },
                     { name: 'Channel Status', value: config.channelStatus ? '✅ Enabled' : '❌ Disabled', inline: true },
-                    { name: 'Welcome DM', value: config.dmStatus ? '✅ Enabled' : '❌ Disabled', inline: true }
+                    { name: 'Welcome DM', value: config.dmStatus ? '✅ Enabled' : '❌ Disabled', inline: true },
+                    { name: 'Embed Color', value: config.embedColor || 'Default', inline: false},
+                    { name: 'Welcome Message', value: config.welcomeMessage || 'Not set', inline: false },
+                    { name: 'Image URL', value: config.imageUrl || 'Not set', inline: false },
                 )
                 .setTimestamp();
+            
+            // Preview embed
+            const previewEmbed = new EmbedBuilder()
+                .setColor(config.embedColor || '#3498db')
+                .setTitle('✨ Welcome Preview ✨')
+                .setThumbnail(interaction.user.displayAvatarURL())
+                .setDescription(config.welcomeMessage ? config.welcomeMessage.replace('{user}', interaction.user.toString()) : `Welcome, ${interaction.user.toString()}!`)
+                .setImage(config.imageUrl || null)
+                .setFooter({ text: 'This is a preview. The actual welcome message will mention the new user.'})
+                .setTimestamp();
 
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [settingsEmbed, previewEmbed], ephemeral: true });
         }
-    } else {
-        const embed = new EmbedBuilder()
-            .setColor('#3498db')
-            .setAuthor({ 
-                name: "Alert!", 
-                iconURL: cmdIcons.dotIcon,
-                url: "https://discord.gg/67gme8db96"
-            })
-            .setDescription('- This command can only be used through slash commands!\n- Please use `/setup-welcome`')
-            .setTimestamp();
-
-        await interaction.reply({ embeds: [embed] });
-    }
     }
 };

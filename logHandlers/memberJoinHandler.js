@@ -104,7 +104,7 @@ async function handleMemberJoinLog(client, member) {
         if (!logChannel) return;
         
         const logEmbed = new EmbedBuilder()
-            .setTitle('🎉 Member Joined')
+            .setTitle('Member Joined')
             .setColor('#00FF00')
             .addFields(
                 { name: 'User', value: `${user.tag} (${user.id})`, inline: true },
@@ -130,43 +130,53 @@ async function handleWelcomeChannel(member, welcomeSettings) {
         const user = member.user;
         const memberCount = member.guild.memberCount;
         const suffix = getOrdinalSuffix(memberCount);
-        const username = truncateUsername(user.username, 15);
-        const joinDate = member.joinedAt.toDateString();
-        const creationDate = user.createdAt.toDateString();
-        const serverIcon = member.guild.iconURL({ format: 'png', dynamic: true, size: 256 });
 
-        const randomImage = getRandomImage(data.welcomeImages);
-        const shortTitle = truncateUsername(`Welcome ${memberCount}${suffix}`, 15);
-
-        const welcomecard = new Wcard()
-            .setName(username) 
-            .setAvatar(user.displayAvatarURL({ format: 'png' }))
-            .setTitle(shortTitle)
-            .setColor("00e5ff")
-            .setBackground(randomImage);
-
-        const cardBuffer = await welcomecard.build();
-        const attachment = new AttachmentBuilder(cardBuffer, { name: 'welcome.png' });
+        const description = (welcomeSettings.welcomeMessage || `Welcomeee, {user}! You are the **${memberCount}${suffix}** citizen in this kingdom.`)
+            .replace('{user}', member.toString());
 
         const welcomeEmbed = new EmbedBuilder()
-            .setTitle("Welcome!")
-            .setDescription(`${member}, You are the **${memberCount}${suffix}** member of our server!`)
-            .setColor("#00e5ff")
-            .setThumbnail(serverIcon)
-            .setImage('attachment://welcome.png')
-            .addFields(
-                { name: 'Username', value: username, inline: true },
-                { name: 'Join Date', value: joinDate, inline: true },
-                { name: 'Account Created', value: creationDate, inline: true }
-            )
-            .setFooter({ text: "We're glad to have you here!", iconURL: serverIcon })
-            .setAuthor({ name: username, iconURL: user.displayAvatarURL() })
-            .setTimestamp();
+            .setColor(welcomeSettings.embedColor || '#ff5733')
+            .setDescription(description)
+            .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+            .setTimestamp()
+            .setFooter({ text: `Welcomeee to ${member.guild.name}!` });
+
+        let files = [];
+        let content = `Greetings ${member}!`;
+        
+        const joinDate = member.joinedAt ? member.joinedAt.toDateString() : 'N/A';
+        const creationDate = user.createdAt ? user.createdAt.toDateString() : 'N/A';
+
+        if (welcomeSettings.imageUrl) {
+            welcomeEmbed.setImage(welcomeSettings.imageUrl);
+        } else {
+            const username = truncateUsername(user.username, 15);
+            const randomImage = getRandomImage(data.welcomeImages);
+            const shortTitle = truncateUsername(`Greetings ${memberCount}${suffix}`, 15);
+
+            const welcomecard = new Wcard()
+                .setName(username)
+                .setAvatar(user.displayAvatarURL({ format: 'png' }))
+                .setTitle(shortTitle)
+                .setColor("ff5733")
+                .setBackground(randomImage);
+
+            const cardBuffer = await welcomecard.build();
+            const attachment = new AttachmentBuilder(cardBuffer, { name: 'welcome.png' });
+            files.push(attachment);
+            welcomeEmbed.setImage('attachment://welcome.png');
+        }
+
+        welcomeEmbed.addFields(
+            { name: 'Username', value: truncateUsername(user.username, 15), inline: true },
+            { name: 'Join Date', value: joinDate, inline: true },
+            { name: 'Account Created', value: creationDate, inline: true }
+        );
 
         await welcomeChannel.send({
-            content: `Hey ${member}!`,
+            content,
             embeds: [welcomeEmbed],
-            files: [attachment]
+            files
         });
 
     } catch (error) {

@@ -4,8 +4,9 @@ const { getEconomyProfile, removeFromInventory } = require('../../models/economy
 
 const COOLDOWN_MINUTES = 120;
 
-async function healPet(interaction, pet, medicineItem) {
-    const userId = interaction.user.id;
+async function healPet(source, pet, medicineItem) {
+    const userId = source.user?.id || source.author.id;
+    const isInteraction = source.isMessageComponent && typeof source.isMessageComponent === 'function';
 
     const now = new Date();
     if (pet.cooldowns.heal) {
@@ -14,16 +15,19 @@ async function healPet(interaction, pet, medicineItem) {
 
         if (diffMinutes < COOLDOWN_MINUTES) {
             const remainingTime = COOLDOWN_MINUTES - diffMinutes;
-            return interaction.reply({ content: `${pet.name} is not ready to be healed yet. You can heal it again in **${remainingTime} more minute(s)**.`, ephemeral: true });
+            const content = `${pet.name} is not ready to be healed yet. You can heal it again in **${remainingTime} more minute(s)**.`;
+            return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
         }
     }
 
     if (pet.isDead) {
-        return interaction.reply({ content: `You cannot heal a defeated pet. Please revive it first.`, ephemeral: true });
+        const content = `You cannot heal a defeated pet. Please revive it first.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     if (pet.stats.hp >= pet.stats.maxHealth) {
-        return interaction.reply({ content: `${pet.name} already has full health.`, ephemeral: true });
+        const content = `${pet.name} already has full health.`;
+        return isInteraction ? source.reply({ content, ephemeral: true }) : source.reply({ content });
     }
 
     pet.stats.hp = Math.min(pet.stats.maxHealth, pet.stats.hp + 50);
@@ -38,10 +42,10 @@ async function healPet(interaction, pet, medicineItem) {
         .addFields({ name: 'HP', value: `+50 (Current: ${pet.stats.hp}/${pet.stats.maxHealth})`, inline: true })
         .setColor('#00FF00');
 
-    if (interaction.isMessageComponent()) {
-        await interaction.update({ content: ' ', embeds: [embed], components: [] });
+    if (isInteraction) {
+        await source.update({ content: ' ', embeds: [embed], components: [] });
     } else {
-        await interaction.reply({ embeds: [embed] });
+        await source.reply({ embeds: [embed] });
     }
 }
 
