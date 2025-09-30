@@ -553,6 +553,29 @@ module.exports = {
             ]
         },
         {
+            id: 'shadowwolf',
+            name: 'Shadow Wolf',
+            species: 'Shadow Wolf',
+            rarity: 'Exclusive',
+            description: 'A spectral wolf bound to the night, cloaked in shadows and feared as a hunter of the moonlit wilds.',
+            price: null, // Exclusive, cannot be bought with gold
+            currency: null,
+            stats: { attack: 20, defense: 15, speed: 22 },
+            image: 'https://i.ibb.co/DTk9yYh/shadowwolf.png', // replace with final splash art link
+            category: 'Exclusive Pets',
+            type: 'pet',
+            stackable: false,
+            abilities: [
+                { name: 'Fang Bite', type: 'attack', effect: { damage: 14 } },
+                { name: 'Moon Howl', type: 'utility', effect: { enemyDefenseDown: 5 } }
+            ],
+            specialAbilities: [
+                { name: 'Shadowstep', type: 'active', effect: { dodge: true } },
+                { name: 'Night Hunt', type: 'passive', effect: { critBoost: 25, condition: 'night' } },
+                { name: 'Eclipse Veil', type: 'active', effect: { enemyAccuracyDown: 25 } }
+            ]
+        },        
+        {
             id: 'celestialdragon',
             name: 'Celestial Dragon',
             species: 'Celestial Dragon',
