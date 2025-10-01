@@ -9,7 +9,8 @@
         "hentai": true,
         "troll": true,
         "economy" : true,
-        "pets": true
+        "pets": true,
+        "media": true
     },
     "categories": {
         "media": true,

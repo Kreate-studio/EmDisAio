@@ -36,7 +36,6 @@ module.exports = {
                 command = require(commandPath);
                 effectiveCommandName = `${commandName} ${subCommandName}`;
             } else {
-                // Check for aliases
                 const petCommandsPath = path.join(excessCommandsPath, 'pets');
                 const commandFiles = fs.readdirSync(petCommandsPath).filter(file => file.endsWith('.js'));
                 for (const file of commandFiles) {
@@ -48,21 +47,27 @@ module.exports = {
                     }
                 }
             }
+        } else if (commandName === 'h' && config.excessCommands.hentai) {
+            const subCommandName = (args.length > 0 ? args.shift().toLowerCase() : 'help');
+            const commandPath = path.join(excessCommandsPath, 'hentai', `${subCommandName}.js`);
+            
+            const hentaiSettings = await hentaiCommandCollection.findOne({ serverId: message.guild.id });
+            if (!hentaiSettings?.status) {
+                return message.reply('Hentai commands are currently disabled.');
+            }
+
+            if (fs.existsSync(commandPath)) {
+                command = require(commandPath);
+                effectiveCommandName = `h ${subCommandName}`;
+            }
         } else {
             const commandFolders = fs.readdirSync(excessCommandsPath, { withFileTypes: true })
-                .filter(dirent => dirent.isDirectory())
+                .filter(dirent => dirent.isDirectory() && dirent.name !== 'hentai' && dirent.name !== 'pets')
                 .map(dirent => dirent.name);
 
             for (const folder of commandFolders) {
                 const commandPath = path.join(excessCommandsPath, folder, `${commandName}.js`);
                 if (fs.existsSync(commandPath)) {
-                    if (folder === 'hentai') {
-                        const hentaiSettings = await hentaiCommandCollection.findOne({ serverId: message.guild.id });
-                        if (!hentaiSettings?.status) {
-                            return message.reply('Hentai commands are currently disabled.');
-                        }
-                    }
-
                     if (config.excessCommands[folder]) {
                         command = require(commandPath);
                         break;
@@ -74,11 +79,16 @@ module.exports = {
         if (!command) return;
 
         try {
-            const isDisabled = await DisabledCommand.findOne({ guildId: message.guild.id, commandName: command.name });
+            const isDisabled = await DisabledCommand.findOne({ guildId: message.guild.id, commandName: effectiveCommandName });
             const isGroupDisabled = (commandName === 'pet' || commandName === 'p') ? await DisabledCommand.findOne({ guildId: message.guild.id, commandName: 'pet' }) : null;
+            const isHentaiGroupDisabled = commandName === 'h' ? await DisabledCommand.findOne({ guildId: message.guild.id, commandName: 'h' }) : null;
 
-            if (isDisabled || isGroupDisabled) {
-                const disabledName = isGroupDisabled ? 'pet' : command.name;
+
+            if (isDisabled || isGroupDisabled || isHentaiGroupDisabled) {
+                let disabledName = effectiveCommandName;
+                if(isGroupDisabled) disabledName = 'pet';
+                if(isHentaiGroupDisabled) disabledName = 'h';
+                
                 return message.reply(`❌ The \`'${prefix}${disabledName}\`' command is disabled in this server.`);
             }
 

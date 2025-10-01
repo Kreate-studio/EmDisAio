@@ -25,7 +25,11 @@ module.exports = {
 
         } catch (error) {
             console.error(error);
-            message.reply('Something went wrong while fetching the image. Please try again later.');
+            if (error.type === 'invalid-json') {
+                message.reply('The hentai API is currently unavailable. Please try again later.');
+            } else {
+                message.reply('Something went wrong while fetching the image. Please try again later.');
+            }
         }
     },
 };
