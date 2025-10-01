@@ -11,6 +11,9 @@ const dares = require('../data/truthordare/dare.json');
 const nsfwTruths = require('../data/truthordare/nsfw_truth.json');
 const nsfwDares = require('../data/truthordare/nsfw_dare.json');
 const DisabledCommand = require('../models/commands/DisabledCommands');
+const PartnerConfig = require('../models/partnership/partnerConfig');
+const EventConfig = require('../models/events/eventConfig');
+const KingdomConfig = require('../models/kingdom/kingdomConfig');
 
 module.exports = {
     name: 'interactionCreate',
@@ -142,6 +145,137 @@ module.exports = {
                 verificationCodes.delete(userId);
 
                 await interaction.reply({ content: '✅ Verification successful! You now have access to the server.', flags: [MessageFlags.Ephemeral] });
+            }
+
+            if (interaction.customId === 'partner_modal') {
+                const config = await PartnerConfig.findOne({ guildId: interaction.guild.id });
+                if (!config) {
+                    return interaction.reply({ content: 'The partnership system has not been configured yet. Use `/setup-partner set` to set a channel first.', ephemeral: true });
+                }
+                
+                const channel = await client.channels.fetch(config.channelId);
+                if (!channel) {
+                    return interaction.reply({ content: 'The configured partner channel could not be found.', ephemeral: true });
+                }
+
+                const serverName = interaction.fields.getTextInputValue('partner_server_name');
+                const description = interaction.fields.getTextInputValue('partner_description');
+                const inviteLink = interaction.fields.getTextInputValue('partner_invite_link');
+                const tags = interaction.fields.getTextInputValue('partner_tags');
+                const imageLink = interaction.fields.getTextInputValue('partner_image_link');
+
+                const embed = new EmbedBuilder()
+                    .setTitle(serverName)
+                    .setDescription(description)
+                    .setColor('#6366f1')
+                    .addFields(
+                        { name: '🔗 Invite Link', value: `[Click here to join!](${inviteLink})`, inline: true },
+                        { name: '🏷️ Tags', value: tags, inline: true }
+                    )
+                    .setFooter({ text: `Partnered with ${interaction.guild.name}`, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+                    .setTimestamp();
+
+                if (imageLink) {
+                    embed.setImage(imageLink);
+                }
+
+                try {
+                    await channel.send({ embeds: [embed] });
+                    await interaction.reply({ content: `✅ Partner embed has been successfully sent to <#${channel.id}>!`, ephemeral: true });
+                } catch (error) {
+                    console.error('Error sending partner embed:', error);
+                    await interaction.reply({ content: 'There was an error sending the partner embed. Please check my permissions in that channel.', ephemeral: true });
+                }
+            }
+
+            if (interaction.customId === 'event_modal') {
+                const config = await EventConfig.findOne({ guildId: interaction.guild.id });
+                if (!config) {
+                    return interaction.reply({ content: 'The event system has not been configured yet. Use `/setup-event set` to set a channel first.', ephemeral: true });
+                }
+
+                const channel = await client.channels.fetch(config.channelId);
+                if (!channel) {
+                    return interaction.reply({ content: 'The configured event channel could not be found.', ephemeral: true });
+                }
+
+                const title = interaction.fields.getTextInputValue('event_title');
+                const description = interaction.fields.getTextInputValue('event_description');
+                const tags = interaction.fields.getTextInputValue('event_tags');
+                const image = interaction.fields.getTextInputValue('event_image');
+                const link = interaction.fields.getTextInputValue('event_link');
+
+                const embed = new EmbedBuilder()
+                    .setTitle(title)
+                    .setDescription(description)
+                    .setColor('#ffea00') 
+                    .addFields({ name: '🏷️ Tags', value: tags, inline: true })
+                    .setFooter({ text: `Event announced by ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+                    .setTimestamp();
+
+                if (image) {
+                    embed.setImage(image);
+                }
+
+                const components = [];
+                if (link) {
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setLabel('Learn More')
+                            .setStyle(ButtonStyle.Link)
+                            .setURL(link)
+                    );
+                    components.push(row);
+                }
+
+                try {
+                    await channel.send({ embeds: [embed], components });
+                    await interaction.reply({ content: `✅ Event announcement has been successfully sent to <#${channel.id}>!`, ephemeral: true });
+                } catch (error) {
+                    console.error('Error sending event embed:', error);
+                    await interaction.reply({ content: 'There was an error sending the event announcement. Please check my permissions in that channel.', ephemeral: true });
+                }
+            }
+            
+            if (interaction.customId === 'kingdom_modal') {
+                const config = await KingdomConfig.findOne({ guildId: interaction.guild.id });
+                if (!config) {
+                    return interaction.reply({ content: 'The kingdom system has not been configured yet. Use `/setup-kingdom set` to set a channel first.', ephemeral: true });
+                }
+
+                const channel = await client.channels.fetch(config.channelId);
+                if (!channel) {
+                    return interaction.reply({ content: 'The configured kingdom channel could not be found.', ephemeral: true });
+                }
+
+                const kingdomName = interaction.fields.getTextInputValue('kingdom_name');
+                const description = interaction.fields.getTextInputValue('kingdom_description');
+                const inviteLink = interaction.fields.getTextInputValue('kingdom_invite_link');
+                const tags = interaction.fields.getTextInputValue('kingdom_tags');
+                const imageLink = interaction.fields.getTextInputValue('kingdom_image_link');
+
+                const embed = new EmbedBuilder()
+                    .setTitle(kingdomName)
+                    .setDescription(description)
+                    .setColor('#ffd700')
+                    .addFields(
+                        { name: '🔗 Invite Link', value: `[Click here to join!](${inviteLink})`, inline: true },
+                        { name: '🏷️ Tags', value: tags, inline: true }
+                    )
+                    .setFooter({ text: `Kingdom announcement by ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+                    .setTimestamp();
+
+                if (imageLink) {
+                    embed.setImage(imageLink);
+                }
+
+                try {
+                    await channel.send({ embeds: [embed] });
+                    await interaction.reply({ content: `✅ Kingdom announcement has been successfully sent to <#${channel.id}>!`, ephemeral: true });
+                } catch (error) {
+                    console.error('Error sending kingdom embed:', error);
+                    await interaction.reply({ content: 'There was an error sending the kingdom announcement. Please check my permissions in that channel.', ephemeral: true });
+                }
             }
         }
         // Handle Slash Commands
