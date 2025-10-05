@@ -22,5 +22,9 @@
         "fun": true,
         "distube": true,
         "setups": true
+    },
+    "api": {
+        "port": 3000,
+        "secret": "ember"
     }
 }

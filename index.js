@@ -1,7 +1,11 @@
 require('dotenv').config();
 const client = require('./main');
+const { initializeApi } = require('./web-api');
 require('./bot');
 require('./shiva');
+
+// Initialize the API server
+initializeApi(client);
 
 const loadEventHandlers = () => {
     const colors = require('./UI/colors/colors');
