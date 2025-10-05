@@ -38,7 +38,7 @@ module.exports = {
     description: "Displays a user's complete economic profile and wealth rank.",
     aliases: ['moneyprofile', 'wealth'],
     async execute(message, args) {
-        const targetUser = message.mentions.users.first() || message.author;
+        const targetUser = (message.mentions && message.mentions.users.first()) || message.author;
         const userId = targetUser.id;
 
         const allProfiles = await getAllEconomyProfiles();
@@ -83,7 +83,7 @@ module.exports = {
                 { name: '📉 __**Liabilities**__', value: `**Loan:** $${loanAmount.toLocaleString()}` },
                 { name: '💼 __**Net Worth**__', value: `**Approx. Total:** **$${netWorth.toLocaleString()}**` }
             )
-            .setFooter({ text: `Requested by ${message.author.tag}` })
+            .setFooter({ text: `Requested by ${message.author.username}` })
             .setTimestamp();
 
         // --- Active Effects Display ---

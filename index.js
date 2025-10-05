@@ -4,13 +4,9 @@ const { initializeApi } = require('./web-api');
 require('./bot');
 require('./shiva');
 
-// Initialize the API server
-initializeApi(client);
-
 const loadEventHandlers = () => {
     const colors = require('./UI/colors/colors');
 
-   
     const logSystem = (system, status = '✅') => {
         const timestamp = new Date().toLocaleTimeString();
         console.log(
@@ -20,23 +16,24 @@ const loadEventHandlers = () => {
         );
     };
 
-   
     console.clear();
-    
-  
+
     const currentDate = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
-   
     console.log('\n' + '═'.repeat(60));
     console.log(`${colors.yellow}${colors.bright}             🤖 BOT SYSTEMS INITIALIZATION 🤖${colors.reset}`);
     console.log('═'.repeat(60) + '\n');
 
-   
+    // --- Moved API Initialization Here ---
+    console.log(`\n${colors.magenta}${colors.bright}🚀 WEB API${colors.reset}`);
+    console.log('─'.repeat(40));
+    initializeApi(client);
+    logSystem('API SERVER');
+    // ------------------------------------
+
     console.log(`\n${colors.magenta}${colors.bright}📡 CORE SYSTEMS${colors.reset}`);
     console.log('─'.repeat(40));
 
-
-  
     const ticketHandler = require('./events/ticketHandler');
     ticketHandler(client);
     logSystem('TICKET');
@@ -52,12 +49,10 @@ const loadEventHandlers = () => {
     console.log(`\n${colors.magenta}${colors.bright}🎮 ENGAGEMENT SYSTEMS${colors.reset}`);
     console.log('─'.repeat(40));
 
-   
     const giveawayHandler = require('./events/giveaway');
     giveawayHandler(client);
     logSystem('GIVEAWAY');
 
- 
     const autoroleHandler = require('./events/autorole');
     autoroleHandler(client);
     logSystem('AUTOROLE');
@@ -69,11 +64,9 @@ const loadEventHandlers = () => {
     console.log(`\n${colors.magenta}${colors.bright}😀 EMOJI & AFK SYSTEMS${colors.reset}`);
     console.log('─'.repeat(40));
 
-   
     const nqnHandler = require('./events/nqn');
     nqnHandler(client);
     logSystem('NQN');
-    
     
     const afkHandler = require('./events/afkHandler');
     afkHandler(client);
@@ -82,7 +75,6 @@ const loadEventHandlers = () => {
     console.log(`\n${colors.magenta}${colors.bright}🔔 NOTIFICATION SYSTEMS${colors.reset}`);
     console.log('─'.repeat(40));
 
- 
     const startYouTubeNotifications = require('./events/youTubeHandler');
     const startTwitchNotifications = require('./events/twitchHandler');
     const startFacebookNotifications = require('./events/facebookHandler');
@@ -100,7 +92,6 @@ const loadEventHandlers = () => {
     startInstagramNotifications(client);
     logSystem('INSTAGRAM');
 
-  
     console.log(`\n${colors.magenta}${colors.bright}🎵 MUSIC SYSTEM${colors.reset}`);
     console.log('─'.repeat(40));
     require('./events/music')(client);
@@ -123,7 +114,6 @@ const loadEventHandlers = () => {
     console.log(`${colors.green}${colors.bright}             ✨ ALL SYSTEMS INITIALIZED ✨${colors.reset}`);
     console.log('═'.repeat(60) + '\n');
 
- 
     console.log(`${colors.green}${colors.bright}Status: ${colors.reset}${colors.green}All systems operational${colors.reset}`);
     console.log(`${colors.gray}Last checked: ${colors.reset}${colors.cyan}${new Date().toLocaleTimeString()}${colors.reset}\n`);
 
