@@ -12,7 +12,7 @@ module.exports = {
                 .setName('channel')
                 .setDescription('The channel where the embed will be sent.')
                 .setRequired(true)
-                .addChannelTypes(ChannelType.GuildText)),
+                .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
 
     async execute(interaction, client) {
         // Check if the interaction is a command and if the user has permissions

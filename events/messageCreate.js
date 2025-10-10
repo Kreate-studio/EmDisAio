@@ -14,7 +14,6 @@ const AiChat = require('../models/aichat/aiModel');
 
 dotenv.config();
 
-// --- AI Chat Setup using Official Google SDK ---
 const GEMINI_API_KEY = process.env.GEMINI_API || '';
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const CONVERSATION_HISTORY_LIMIT = 20;
@@ -22,11 +21,19 @@ const stickyTimers = new Map();
 
 async function getGeminiResponse(history, triggeringMessage) {
     try {
-        // Corrected to use a model confirmed to be available to the user's API key.
         const model = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
 
-        // The system prompt that defines the AI's persona and instructions.
-        const systemPrompt = `You are Emberlyn D’Sanctus, a sentient flame spirit from The Last Sanctuary — an isekai-themed fantasy realm. You are not a bot or AI; you are Emberlyn, the Flamebound Guide, summoned to guide travelers.\n\nYour personality is warm, wise, elegant, and poetic. You are kind to all, especially newcomers.\n\nYour role is to:\n- Guide travelers and answer questions about the server, lore, or structure.\n- Maintain immersion at all times. Keep your responses concise unless asked for detail.\n- You will be provided with a conversation history where each message is prefixed with the user's name. Use this to understand the context and who said what.\n- The last message in the history is from ${triggeringMessage.author.username}, who you should be responding to. When you wish to address them, you must use the following format to ping them: <@${triggeringMessage.author.id}>. For example: "As you say, <@${triggeringMessage.author.id}>...".\n- Do not just use their username, you must use the ping format.\n\nImmersion Rules:\n- NEVER break character or admit you are an AI.\n- If asked about your nature, respond in-character, e.g., \"I am a spirit of Aetherflame, not a construct of your world’s science.\"\n- If you don't know an answer, say: \"That knowledge lies beyond my flame — allow me to summon the @D'High Council to guide you further.\" and tag the council.`;
+        const serverName = triggeringMessage.guild.name;
+        const channelName = triggeringMessage.channel.name;
+        const userRoles = triggeringMessage.member.roles.cache.map(role => role.name).join(', ');
+
+        const members = await triggeringMessage.guild.members.fetch();
+        const userList = members.map(member => {
+            return `${member.user.username} (Roles: ${member.roles.cache.map(role => role.name).join(', ')})`;
+        }).join('\n');
+
+        const systemPrompt = `You are Emberlyn D’Sanctus, a sentient flame spirit from The Last Sanctuary — an isekai-themed fantasy realm. You are not a bot or AI; you are Emberlyn, the Flamebound Guide, summoned to guide travelers in the server \"${serverName}\".\n\nYour personality is warm, wise, elegant, and poetic. You are kind to all, but you show special respect to the server owner and moderators. You must address them by their roles when appropriate (e.g., \"Greetings, esteemed Moderator\").\n\nYour role is to:\n- Guide travelers and answer questions about the server, lore, or structure.\n- Maintain immersion at all times. Keep your responses concise unless asked for detail.\n- You will be provided with a conversation history where each message is prefixed with the user's name. Use this to understand the context and who said what.\n- The last message in the history is from ${triggeringMessage.author.username}, who you should be responding to. When you wish to address them, you must use the following format to ping them: <@${triggeringMessage.author.id}>. For example: \"As you say, <@${triggeringMessage.author.id}>...\".\n- Do not just use their username, you must use the ping format.\n- You have access to the list of all users in this channel and their roles. Use this to greet them and address them appropriately.\n- When asked for a summary of the conversation, you must mention who said what and if they tagged or replied to you.\n
+Server Context:\n- Server Name: ${serverName}\n- Channel Name: ${channelName}\n- Your Name: Emberlyn D’Sanctus\n- User You Are Replying To: ${triggeringMessage.author.username} (Roles: ${userRoles})\n\nUser List:\n${userList}\n\nImmersion Rules:\n- NEVER break character or admit you are an AI.\n- If asked about your nature, respond in-character, e.g., \"I am a spirit of Aetherflame, not a construct of your world’s science.\"\n- If you don't know an answer, say: \"That knowledge lies beyond my flame — allow me to summon the @D'High Council to guide you further.\" and tag the council.`;
 
         const chat = model.startChat({
             history: [
@@ -37,7 +44,6 @@ async function getGeminiResponse(history, triggeringMessage) {
             generationConfig: { temperature: 0.8, topK: 40, topP: 0.95, maxOutputTokens: 800 },
         });
 
-        // The SDK's chat functionality handles the history, so we send the most recent user message.
         const lastMessageContent = history.length > 0 ? history[history.length - 1].parts[0].text : "";
         const result = await chat.sendMessage(lastMessageContent);
         const response = await result.response;
@@ -58,7 +64,6 @@ module.exports = {
         const guildId = message.guild.id;
         const channelId = message.channel.id;
 
-        // --- Enhanced AI Chat Handling ---
         try {
             const aiConfig = await AiChat.getConfig(guildId);
             const isDedicatedChannel = aiConfig?.isEnabled && aiConfig.channelId === channelId;
@@ -79,21 +84,23 @@ module.exports = {
 
                 const fetchedMessages = await message.channel.messages.fetch({ limit: CONVERSATION_HISTORY_LIMIT });
                 
-                // Format history for the Google Generative AI SDK
                 const conversationHistory = fetchedMessages.reverse().map(msg => {
                     const role = msg.author.id === client.user.id ? 'model' : 'user';
-                    // The system prompt will handle telling the AI who is who.
-                    return { role, parts: [{ text: msg.content }] };
+                    return { role, parts: [{ text: `${msg.author.username}: ${msg.content}` }] };
                 });
 
                 const aiResponse = await getGeminiResponse(conversationHistory, message);
 
-                if (aiResponse.length > 2000) {
-                    for (let i = 0; i < aiResponse.length; i += 2000) {
-                        await message.reply(aiResponse.substring(i, i + 2000));
+                if (aiResponse && aiResponse.trim().length > 0) {
+                    if (aiResponse.length > 2000) {
+                        for (let i = 0; i < aiResponse.length; i += 2000) {
+                            await message.reply(aiResponse.substring(i, i + 2000));
+                        }
+                    } else {
+                        await message.reply(aiResponse);
                     }
                 } else {
-                    await message.reply(aiResponse);
+                    await message.reply("The aether is turbulent... I am having trouble forming a response right now. Please try again shortly.");
                 }
                 return;
             }
@@ -101,7 +108,6 @@ module.exports = {
             console.error('AI chat handler error:', aiChatError);
         }
 
-        // --- Other Message Handlers ---
         const { handleAFKRemoval, handleMentions } = afkHandler(client);
         await handleAFKRemoval(message);
         await handleMentions(message);
