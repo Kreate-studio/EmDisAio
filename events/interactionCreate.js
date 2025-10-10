@@ -13,7 +13,6 @@ const nsfwDares = require('../data/truthordare/nsfw_dare.json');
 const DisabledCommand = require('../models/commands/DisabledCommands');
 const PartnerConfig = require('../models/partnership/partnerConfig');
 const EventConfig = require('../models/events/eventConfig');
-const KingdomConfig = require('../models/kingdom/kingdomConfig');
 
 module.exports = {
     name: 'interactionCreate',
@@ -121,6 +120,7 @@ module.exports = {
              if (interaction.customId && interaction.customId.startsWith('boss-')) {
                 return;
             }
+
             if (interaction.customId === 'verify_modal') {
                 const userId = interaction.user.id;
                 const userInput = interaction.fields.getTextInputValue('verify_input');
@@ -233,48 +233,7 @@ module.exports = {
                     await interaction.reply({ content: `✅ Event announcement has been successfully sent to <#${channel.id}>!`, ephemeral: true });
                 } catch (error) {
                     console.error('Error sending event embed:', error);
-                    await interaction.reply({ content: 'There was an error sending the event announcement. Please check my permissions in that channel.', ephemeral: true });
-                }
-            }
-            
-            if (interaction.customId === 'kingdom_modal') {
-                const config = await KingdomConfig.findOne({ guildId: interaction.guild.id });
-                if (!config) {
-                    return interaction.reply({ content: 'The kingdom system has not been configured yet. Use `/setup-kingdom set` to set a channel first.', ephemeral: true });
-                }
-
-                const channel = await client.channels.fetch(config.channelId);
-                if (!channel) {
-                    return interaction.reply({ content: 'The configured kingdom channel could not be found.', ephemeral: true });
-                }
-
-                const kingdomName = interaction.fields.getTextInputValue('kingdom_name');
-                const description = interaction.fields.getTextInputValue('kingdom_description');
-                const inviteLink = interaction.fields.getTextInputValue('kingdom_invite_link');
-                const tags = interaction.fields.getTextInputValue('kingdom_tags');
-                const imageLink = interaction.fields.getTextInputValue('kingdom_image_link');
-
-                const embed = new EmbedBuilder()
-                    .setTitle(kingdomName)
-                    .setDescription(description)
-                    .setColor('#ffd700')
-                    .addFields(
-                        { name: '🔗 Invite Link', value: `[Click here to join!](${inviteLink})`, inline: true },
-                        { name: '🏷️ Tags', value: tags, inline: true }
-                    )
-                    .setFooter({ text: `Kingdom announcement by ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
-                    .setTimestamp();
-
-                if (imageLink) {
-                    embed.setImage(imageLink);
-                }
-
-                try {
-                    await channel.send({ embeds: [embed] });
-                    await interaction.reply({ content: `✅ Kingdom announcement has been successfully sent to <#${channel.id}>!`, ephemeral: true });
-                } catch (error) {
-                    console.error('Error sending kingdom embed:', error);
-                    await interaction.reply({ content: 'There was an error sending the kingdom announcement. Please check my permissions in that channel.', ephemeral: true });
+                    await interaction.reply({ content: 'There was an an error sending the event announcement. Please check my permissions in that channel.', ephemeral: true });
                 }
             }
         }
@@ -308,7 +267,7 @@ module.exports = {
     },
 };
 
-// Command loader (remains unchanged)
+// --- FIXED COMMAND LOADER ---
 const commandsPath = path.join(__dirname, '../commands');
 const commandFiles = fs.readdirSync(commandsPath).reduce((files, folder) => {
     const folderPath = path.join(commandsPath, folder);
@@ -317,9 +276,18 @@ const commandFiles = fs.readdirSync(commandsPath).reduce((files, folder) => {
         for (const file of fileNames) {
             const filePath = path.join(folderPath, file);
             const command = require(filePath);
+            command.category = folder;
+
+            // Load slash command
             if (command.data && command.data.name) {
-                command.category = folder;
                 files.set(command.data.name, command);
+            }
+            // Load prefix command and its aliases
+            else if (command.name) {
+                files.set(command.name, command);
+                if (command.aliases && Array.isArray(command.aliases)) {
+                    command.aliases.forEach(alias => files.set(alias, command));
+                }
             }
         }
     }
