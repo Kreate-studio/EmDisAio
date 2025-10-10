@@ -29,6 +29,12 @@ async function createEconomyProfileIfNotExists(userId) {
         await economyCollection.insertOne(newProfile);
     } else {
         const updates = {};
+        if (typeof existingProfile.wallet !== 'number' || isNaN(existingProfile.wallet)) {
+            updates.wallet = 0;
+        }
+        if (typeof existingProfile.bank !== 'number' || isNaN(existingProfile.bank)) {
+            updates.bank = 0;
+        }
         if (typeof existingProfile.bankLimit !== 'number') {
             updates.bankLimit = 10000;
         }
@@ -47,8 +53,6 @@ async function createEconomyProfileIfNotExists(userId) {
         }
     }
 }
-
-// ... (rest of the file is unchanged)
 
 async function getAllEconomyProfiles() {
     return await economyCollection.find({}).toArray();
@@ -137,6 +141,10 @@ async function removeFromInventory(userId, uniqueId) {
     return await economyCollection.updateOne({ userId }, { $pull: { inventory: { uniqueId: uniqueId } } });
 }
 
+async function deleteAllEconomyProfiles() {
+    return await economyCollection.deleteMany({});
+}
+
 module.exports = {
     createEconomyProfileIfNotExists,
     getEconomyProfile,
@@ -152,5 +160,6 @@ module.exports = {
     updateBills,
     handleEviction,
     addToInventory,
-    removeFromInventory
+    removeFromInventory,
+    deleteAllEconomyProfiles
 };
