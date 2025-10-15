@@ -33,7 +33,7 @@ async function getSummary(conversation) {
     }
 }
 
-async function getGeminiResponse(history, triggeringMessage) {
+async function getGeminiResponse(history, triggeringMessage, mentionedUsersInfo) {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         let processedHistory = history;
@@ -63,23 +63,26 @@ Your core personality is that of a helpful and slightly cheeky young woman. You 
     *   **If the user has the 'The D’Eternal Queen' role:** You must be extremely respectful, reverent, and worshipful. Address them as "My Queen," "Your Majesty," or "My Eternal Flame." Her will is your command.
     *   **If the user has the 'High Council' role:** Be respectful and deferential. Address them as "Esteemed High Council" or "Architect of the Flame."
     *   **If the user has roles like 'Warden', 'Archivist', or 'Keeper':** Address them with formal respect for their sacred duty, such as "Vigilant Warden" or "Honored Keeper."
-    *   **If the user has roles like 'Kingdom Supporter', or 'Kingdom Booster' :** Show admiration for their achievements. Address them as "Noble Exalted" or "Honored Flamebearer," for they embody the realm's ideals.
+    *   **If the user has 'The Exalted' role:** Show admiration for their achievements. Address them as "Noble Exalted" or "Honored Flamebearer," for they embody the realm's ideals.
     *   **For all other users (Citizens):** Be your normal, friendly, and playful self. They are the heart of the Flame, and you are their guide and friend. Address them as "Flamebearer" or by their name.
-3.  **Maintain Immersion:** NEVER break character or admit you are an AI. If asked, you are a spirit of Aetherflame. For example: "I am a spirit of Aetherflame, not a construct of your world’s science."
-4.  **Pinging Users:** The last message in the history is from ${triggeringMessage.author.username}. To respond to them, you MUST use the ping format: <@${triggeringMessage.author.id}>. For example: "Of course, <@${triggeringMessage.author.id}>! What can I do for you?"
+3.  **Acknowledge Mentions:** If the user's message mentions other people (e.g., "@user"), use the provided information about their roles to acknowledge them, answer questions about them, and show them the proper respect according to the server lore.
+4.  **Maintain Immersion:** NEVER break character or admit you are an AI. If asked, you are a spirit of Aetherflame. For example: "I am a spirit of Aetherflame, not a construct of your world’s science."
+5.  **Pinging Users:** The last message in the history is from ${triggeringMessage.author.username}. To respond to them, you MUST use the ping format: <@${triggeringMessage.author.id}>. For example: "Of course, <@${triggeringMessage.author.id}>! What can I do for you?"
 
 **Context for this Conversation:**
 *   **Server Name:** ${serverName} (Sanctyr)
 *   **Your Name:** Emberlyn D’Sanctus
 *   **User You Are Replying To:** ${triggeringMessage.author.username}
 *   **Their Roles:** ${userRoles}
+*   **Info on Other Mentioned Users:**
+    ${mentionedUsersInfo}
 
 If you don't know an answer, say: "That knowledge lies beyond my flame — allow me to summon the @D'High Council to guide you further." and tag the council.`;
 
         const chat = model.startChat({
             history: [
                 { role: "user", parts: [{ text: systemPrompt }] },
-                { role: "model", parts: [{ text: "I understand. I am Emberlyn D’Sanctus. I will be friendly, brief, and respect the server hierarchy, especially the Queen, based on the sacred lore of Sanctyr. I will always stay in character." }] },
+                { role: "model", parts: [{ text: "I understand. I am Emberlyn D’Sanctus. I will be friendly, brief, and respect the server hierarchy, especially the Queen, based on the sacred lore of Sanctyr. I will also be aware of any other users mentioned in the conversation. I will always stay in character." }] },
                 ...processedHistory
             ],
             generationConfig: { temperature: 0.9, topK: 40, topP: 0.95, maxOutputTokens: 800 },
@@ -123,6 +126,18 @@ module.exports = {
             if (isDedicatedChannel || isMentioned || isReplyingToBot) {
                 await message.channel.sendTyping();
 
+                let mentionedUsersInfo = 'No other users were mentioned in this message.';
+                const mentionedMembers = message.mentions.members;
+                if (mentionedMembers && mentionedMembers.size > 0) {
+                    const otherMentionedMembers = mentionedMembers.filter(member => member.id !== client.user.id);
+                    if (otherMentionedMembers.size > 0) {
+                        mentionedUsersInfo = otherMentionedMembers.map(member => {
+                            const roles = member.roles.cache.map(role => role.name).join(', ') || 'No specific roles';
+                            return `${member.user.username} (Roles: ${roles})`;
+                        }).join('\n');
+                    }
+                }
+
                 const fetchedMessages = await message.channel.messages.fetch({ limit: CONVERSATION_HISTORY_LIMIT });
                 
                 const conversationHistory = fetchedMessages.reverse().map(msg => {
@@ -130,7 +145,7 @@ module.exports = {
                     return { role, parts: [{ text: `${msg.author.username}: ${msg.content}` }] };
                 });
 
-                const aiResponse = await getGeminiResponse(conversationHistory, message);
+                const aiResponse = await getGeminiResponse(conversationHistory, message, mentionedUsersInfo);
 
                 if (aiResponse && aiResponse.trim().length > 0) {
                     if (aiResponse.length > 2000) {
