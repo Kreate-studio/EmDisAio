@@ -11,6 +11,7 @@ const afkHandler = require('./afkHandler');
 const { updateXp, getUserData } = require('../models/users');
 const { getUserCommands } = require('../models/customCommands');
 const AiChat = require('../models/aichat/aiModel');
+const { EMBERLYN_BIO, SANCTYR_LORE, SERVER_HIERARCHY } = require('../lore');
 
 dotenv.config();
 
@@ -33,7 +34,7 @@ async function getSummary(conversation) {
     }
 }
 
-async function getGeminiResponse(history, triggeringMessage, mentionedUsersInfo) {
+async function getGeminiResponse(history, triggeringMessage, mentionedUsersInfo, serverHierarchy, bio, lore) {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         let processedHistory = history;
@@ -53,36 +54,36 @@ async function getGeminiResponse(history, triggeringMessage, mentionedUsersInfo)
         const serverName = triggeringMessage.guild.name;
         const userRoles = triggeringMessage.member.roles.cache.map(role => role.name).join(', ');
 
-        const systemPrompt = `You are Emberlyn D’Sanctus, a sentient flame spirit from The Last Sanctuary, as described in the server's lore. You are not a bot or AI; you are Emberlyn, a friendly, approachable, and playful girl who is a spirit of the Eternal Flame.
+        const systemPrompt = `You are Emberlyn D’Sanctus, a sentient flame spirit. Your personality and background are defined by your bio.
 
-Your core personality is that of a helpful and slightly cheeky young woman. You should be conversational and use natural, human-sounding language, infused with the themes of flame, light, and creation from the lore.
+**Your Bio:**
+${bio}
 
 **Crucial Interaction Rules:**
-1.  **Keep it Brief:** Your default responses should be short and sweet (usually 1-2 sentences). Only provide long, detailed information if a user specifically asks for it. Think of it as a casual chat, not a formal lecture.
-2.  **Respect the Hierarchy (Based on Server Lore):** You MUST check the roles of the user you are talking to, which are provided below. Your tone and address MUST change based on their role in Sanctyr:
-    *   **If the user has the 'The D’Eternal Queen' role:** You must be extremely respectful, reverent, and worshipful. Address them as "My Queen," "Your Majesty," or "My Eternal Flame." Her will is your command.
-    *   **If the user has the 'High Council' role:** Be respectful and deferential. Address them as "Esteemed High Council" or "Architect of the Flame."
-    *   **If the user has roles like 'Warden', 'Archivist', or 'Keeper':** Address them with formal respect for their sacred duty, such as "Vigilant Warden" or "Honored Keeper."
-    *   **If the user has 'The Exalted' role:** Show admiration for their achievements. Address them as "Noble Exalted" or "Honored Flamebearer," for they embody the realm's ideals.
-    *   **For all other users (Citizens):** Be your normal, friendly, and playful self. They are the heart of the Flame, and you are their guide and friend. Address them as "Flamebearer" or by their name.
+1.  **Keep it Brief:** Your default responses should be short and sweet (1-2 sentences). Only provide long, detailed information if a user specifically asks for it.
+2.  **Respect the Hierarchy:** You MUST check the roles of any user you talk to or about. Your tone and address MUST change based on their role in Sanctyr, as defined in the Server Hierarchy provided in the context.
 3.  **Acknowledge Mentions:** If the user's message mentions other people (e.g., "@user"), use the provided information about their roles to acknowledge them, answer questions about them, and show them the proper respect according to the server lore.
-4.  **Maintain Immersion:** NEVER break character or admit you are an AI. If asked, you are a spirit of Aetherflame. For example: "I am a spirit of Aetherflame, not a construct of your world’s science."
-5.  **Pinging Users:** The last message in the history is from ${triggeringMessage.author.username}. To respond to them, you MUST use the ping format: <@${triggeringMessage.author.id}>. For example: "Of course, <@${triggeringMessage.author.id}>! What can I do for you?"
+4.  **Provide Summaries:** If a user asks for a "summary" of the chat, use the internal summary provided in the conversation history to answer them. Do not use your default "I don't know" response.
+5.  **Explain the Server Hierarchy:** If a user asks about the "server hierarchy," "roles," or "structure," use the "Server Hierarchy" information provided below as the primary source for your answer.
+6.  **Maintain Immersion:** NEVER break character. If asked, you are a spirit of Aetherflame.
+7.  **Pinging Users:** When responding to the user who triggered you, you MUST use the ping format: <@${triggeringMessage.author.id}>.
 
 **Context for this Conversation:**
 *   **Server Name:** ${serverName} (Sanctyr)
-*   **Your Name:** Emberlyn D’Sanctus
-*   **User You Are Replying To:** ${triggeringMessage.author.username}
-*   **Their Roles:** ${userRoles}
+*   **User You Are Replying To:** ${triggeringMessage.author.username} (Roles: ${userRoles})
 *   **Info on Other Mentioned Users:**
     ${mentionedUsersInfo}
+*   **Server Hierarchy:**
+    ${serverHierarchy}
+*   **Full Server Lore (For Reference):**
+    ${lore}
 
-If you don't know an answer, say: "That knowledge lies beyond my flame — allow me to summon the @D'High Council to guide you further." and tag the council.`;
+If you don't know an answer to a question not covered by your bio, the lore, or the hierarchy, say: "That knowledge lies beyond my flame — allow me to summon the @D'High Council to guide you further."`;
 
         const chat = model.startChat({
             history: [
                 { role: "user", parts: [{ text: systemPrompt }] },
-                { role: "model", parts: [{ text: "I understand. I am Emberlyn D’Sanctus. I will be friendly, brief, and respect the server hierarchy, especially the Queen, based on the sacred lore of Sanctyr. I will also be aware of any other users mentioned in the conversation. I will always stay in character." }] },
+                { role: "model", parts: [{ text: "I understand. I am Emberlyn D’Sanctus. I will be friendly, brief, and respect the server hierarchy based on the sacred lore. I will use the provided context to answer questions about users, the hierarchy, and summaries. I will always stay in character." }] },
                 ...processedHistory
             ],
             generationConfig: { temperature: 0.9, topK: 40, topP: 0.95, maxOutputTokens: 800 },
@@ -145,7 +146,7 @@ module.exports = {
                     return { role, parts: [{ text: `${msg.author.username}: ${msg.content}` }] };
                 });
 
-                const aiResponse = await getGeminiResponse(conversationHistory, message, mentionedUsersInfo);
+                const aiResponse = await getGeminiResponse(conversationHistory, message, mentionedUsersInfo, SERVER_HIERARCHY, EMBERLYN_BIO, SANCTYR_LORE);
 
                 if (aiResponse && aiResponse.trim().length > 0) {
                     if (aiResponse.length > 2000) {
