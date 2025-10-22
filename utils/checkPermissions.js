@@ -27,10 +27,16 @@ module.exports = async function checkPermissions(interaction) {
                 '- If you are the server owner, please add User ID by running **/setup-serverconfig**.'
             );
 
-        await interaction.reply({
-            embeds: [embed],
-            flags : 64
-        });
+        if (interaction.deferred) {
+            await interaction.editReply({
+                embeds: [embed]
+            });
+        } else {
+            await interaction.reply({
+                embeds: [embed],
+                flags: 64
+            });
+        }
 
         setTimeout(() => {
             interaction.deleteReply().catch(() => {});

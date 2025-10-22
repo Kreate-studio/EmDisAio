@@ -13,6 +13,7 @@ const nsfwDares = require('../data/truthordare/nsfw_dare.json');
 const DisabledCommand = require('../models/commands/DisabledCommands');
 const PartnerConfig = require('../models/partnership/partnerConfig');
 const EventConfig = require('../models/events/eventConfig');
+const AiChat = require('../models/aichat/aiModel');
 
 module.exports = {
     name: 'interactionCreate',
@@ -114,6 +115,8 @@ module.exports = {
             if (interaction.customId && interaction.customId.startsWith('boss-')) {
                 return;
             }
+
+
         }
         // Handle Modal Submissions
         else if (interaction.isModalSubmit()) {
@@ -208,7 +211,7 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setTitle(title)
                     .setDescription(description)
-                    .setColor('#ffea00') 
+                    .setColor('#ffea00')
                     .addFields({ name: '🏷️ Tags', value: tags, inline: true })
                     .setFooter({ text: `Event announced by ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
                     .setTimestamp();
@@ -234,6 +237,27 @@ module.exports = {
                 } catch (error) {
                     console.error('Error sending event embed:', error);
                     await interaction.reply({ content: 'There was an an error sending the event announcement. Please check my permissions in that channel.', ephemeral: true });
+                }
+            }
+
+            if (interaction.customId === 'edit_lore_modal') {
+                await interaction.deferReply({ ephemeral: true });
+
+                const guildId = interaction.guild.id;
+                const bio = interaction.fields.getTextInputValue('bio_input');
+                const lore = interaction.fields.getTextInputValue('lore_input');
+                const hierarchy = interaction.fields.getTextInputValue('hierarchy_input');
+
+                try {
+                    await AiChat.updateLore(guildId, bio, lore, hierarchy, interaction.user.id);
+                    await interaction.editReply({
+                        content: '✅ AI lore and personality have been successfully updated!'
+                    });
+                } catch (error) {
+                    console.error(`Error updating lore for guild ${guildId}:`, error);
+                    await interaction.editReply({
+                        content: '❌ There was an error saving your changes. Please try again later.'
+                    });
                 }
             }
         }
