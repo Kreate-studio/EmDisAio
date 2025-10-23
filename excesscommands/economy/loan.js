@@ -39,7 +39,7 @@ async function handleTakeLoan(message, profile, args) {
     const maxLoanAmount = Math.floor(bankLimit * 0.5);
 
     if (loanAmount > maxLoanAmount) {
-        return message.reply(`You can only borrow up to 50% of your bank limit. Your maximum loan amount is **$${maxLoanAmount.toLocaleString()}**.`);
+        return message.reply(`You can only borrow up to 50% of your bank limit. Your maximum loan amount is **${maxLoanAmount.toLocaleString()} embers**.`);
     }
 
     const amountToRepay = Math.floor(loanAmount * (1 + LOAN_INTEREST_RATE));
@@ -52,10 +52,10 @@ async function handleTakeLoan(message, profile, args) {
 
     const embed = new EmbedBuilder()
         .setTitle('✅ Loan Successful')
-        .setDescription(`You have taken out a loan of **$${loanAmount.toLocaleString()}**. The money has been added to your wallet.`)
+        .setDescription(`You have taken out a loan of **${loanAmount.toLocaleString()} embers**. The money has been added to your wallet.`)
         .addFields({
             name: 'Repayment Details',
-            value: `You must repay **$${amountToRepay.toLocaleString()}** by ${dueDate.toDateString()}.`
+            value: `You must repay **${amountToRepay.toLocaleString()} embers** by ${dueDate.toDateString()}.`
         })
         .setColor('#2ECC71');
 
@@ -89,7 +89,7 @@ async function handleRepayLoan(message, profile, args) {
         let replyMessage = 'You have successfully paid off your loan!';
         if (refund > 0) {
             await updateWallet(userId, refund); // Refund the overpaid amount
-            replyMessage += ` You overpaid and have been refunded **$${refund.toLocaleString()}**.`;
+            replyMessage += ` You overpaid and have been refunded **${refund.toLocaleString()} embers**.`;
         }
 
         return message.reply(replyMessage);
@@ -101,7 +101,7 @@ async function handleRepayLoan(message, profile, args) {
             loan: { amount: newLoanAmount, dueDate: loan.dueDate }
         });
 
-        return message.reply(`You have paid **$${repaymentAmount.toLocaleString()}** towards your loan. The remaining amount is **$${newLoanAmount.toLocaleString()}**.`);
+        return message.reply(`You have paid **${repaymentAmount.toLocaleString()} embers** towards your loan. The remaining amount is **${newLoanAmount.toLocaleString()} embers**.`);
     }
 }
 
@@ -116,15 +116,15 @@ function displayLoanInfo(message, profile) {
     if (loanAmount > 0) {
         embed.addFields({
             name: 'Current Loan Status',
-            value: `Amount to repay: **$${loanAmount.toLocaleString()}**\nDue Date: **${new Date(profile.loan.dueDate).toDateString()}**`
+            value: `Amount to repay: **${loanAmount.toLocaleString()} embers**\nDue Date: **${new Date(profile.loan.dueDate).toDateString()}**`
         });
     } else {
         embed.addFields({ name: 'Current Loan Status', value: 'You have no outstanding loans.' });
     }
-    
+
     const bankLimit = profile.bankLimit || DEFAULT_BANK_LIMIT;
     const maxLoanAmount = Math.floor(bankLimit * 0.5);
-    embed.addFields({ name: 'Maximum Loan', value: `You can borrow up to **$${maxLoanAmount.toLocaleString()}**.` });
+    embed.addFields({ name: 'Maximum Loan', value: `You can borrow up to **${maxLoanAmount.toLocaleString()} embers**.` });
 
     return message.reply({ embeds: [embed] });
 }

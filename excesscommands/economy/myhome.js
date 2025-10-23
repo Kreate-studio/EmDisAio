@@ -13,6 +13,7 @@ module.exports = {
     aliases: ['myhouse', 'myproperties'],
     description: 'View the properties you own and your current bill status.',
     async execute(message) {
+        await message.channel.sendTyping();
         const userId = message.author.id;
         const profile = await getEconomyProfile(userId);
 
@@ -37,11 +38,11 @@ module.exports = {
                 totalUpkeep += upkeep;
                 embed.addFields({
                     name: `**${house.name}**`,
-                    value: `*Monthly Upkeep: $${upkeep.toLocaleString()}*`,
+                    value: `*Monthly Upkeep: ${upkeep.toLocaleString()} embers*`,
                     inline: false
                 });
             });
-            embed.setFooter({ text: `Total Monthly Upkeep: $${totalUpkeep.toLocaleString()}` });
+            embed.setFooter({ text: `Total Monthly Upkeep: ${totalUpkeep.toLocaleString()} embers` });
         }
 
         // Add billing information
@@ -51,7 +52,7 @@ module.exports = {
         if (totalDue > 0) {
             embed.addFields({
                 name: '\n💰 Billing Status',
-                value: `**Amount Due:** **$${totalDue.toLocaleString()}**\n` +
+                value: `**Amount Due:** **${totalDue.toLocaleString()} embers**\n` +
                        `*Bill issued on: <t:${Math.floor(bills.billIssueDate / 1000)}:D>*\n` +
                        `*Pay within 7 days to avoid foreclosure!*`,
                 inline: false

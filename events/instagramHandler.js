@@ -31,7 +31,7 @@ async function fetchInstagramPosts(client) {
                     .setAuthor({
                         name: 'New Instagram Post!',
                         iconURL: cmdIcons.InstagramIcon,
-                        url: 'https://discord.gg/67gme8db96', 
+                        url: 'https://discord.gg/sanctyr', 
                     })
                     .setDescription(latestMedia.caption || 'No caption')
                     .setImage(latestMedia.media_url)

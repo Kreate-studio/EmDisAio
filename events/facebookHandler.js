@@ -31,7 +31,7 @@ async function fetchFacebookPosts(client) {
                     .setAuthor({
                         name: 'New Facebook Post!',
                         iconURL: cmdIcons.FaceBookIcon,
-                        url: 'https://discord.gg/67gme8db96', 
+                        url: 'https://discord.gg/sanctyr', 
                     })
                     .setDescription(`[View Post](https://www.facebook.com/${postId})`)
                     .setURL(`https://www.facebook.com/${postId}`)

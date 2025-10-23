@@ -48,7 +48,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setTitle('✅ Deposit Successful')
-            .setDescription(`You have deposited **$${depositAmount.toLocaleString()}** into your bank.`)
+            .setDescription(`You have deposited **${depositAmount.toLocaleString()} embers** into your bank.`)
             .setColor('#2ECC71');
         
         if (amount > depositAmount) {

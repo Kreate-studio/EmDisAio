@@ -3,7 +3,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require(
 
 module.exports = {
     name: 'buy-gold',
-    description: 'Convert your currency into gold coins.',
+    description: 'Convert your embers into gold coins.',
     usage: 'buy-gold <amount>',
 
     async execute(message, args) {
@@ -17,7 +17,7 @@ module.exports = {
         const economyProfile = await getEconomyProfile(message.author.id);
 
         if (economyProfile.wallet < cost) {
-            return message.reply('You do not have enough currency to buy this much gold.');
+            return message.reply('You do not have enough embers to buy this much gold.');
         }
 
         const row = new ActionRowBuilder()
@@ -33,7 +33,7 @@ module.exports = {
             );
 
         const confirmationMessage = await message.reply({
-            content: `Are you sure you want to buy **${amount}** gold for **${cost}** currency?`,
+            content: `Are you sure you want to buy **${amount}** gold for **${cost}** embers?`,
             components: [row]
         });
 
@@ -60,13 +60,13 @@ module.exports = {
                 // Re-fetch profile to ensure they still have enough money
                 const currentProfile = await getEconomyProfile(message.author.id);
                 if (currentProfile.wallet < cost) {
-                    return interaction.followUp('You no longer have enough currency to make this purchase.');
+                    return interaction.followUp('You no longer have enough embers to make this purchase.');
                 }
 
                 await updateWallet(message.author.id, -cost);
                 await updateGold(message.author.id, amount);
 
-                return interaction.followUp(`You have successfully bought **${amount}** gold coins for **${cost}** currency!`);
+                return interaction.followUp(`You have successfully bought **${amount}** gold coins for **${cost}** embers!`);
             } else if (interaction.customId === 'decline_buy') {
                 return interaction.followUp('Gold purchase cancelled.');
             }

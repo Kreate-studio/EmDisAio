@@ -1,11 +1,11 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getEconomyProfile, updateEconomyProfile, addInvestment, updateWallet } = require('../../models/economy');
 const { stocks, updateStockPrices } = require('../../data/stocks');
 const crypto = require('crypto');
 
 module.exports = {
     name: 'invest',
-    description: 'Invest in stocks.',
+    description: 'Invest in kingdom assets.',
     async execute(message, args) {
         const subCommand = args[0] ? args[0].toLowerCase() : 'help';
         const userId = message.author.id;
@@ -67,7 +67,7 @@ async function buyStock(message, args, userId) {
 
     const embed = new EmbedBuilder()
         .setTitle('Purchase Successful')
-        .setDescription(`You have purchased **${amount}** shares of **${stockSymbol}** for a total of **$${totalCost.toFixed(2)}**.`)
+        .setDescription(`You have purchased **${amount}** shares of **${stockSymbol}** for a total of **${totalCost.toFixed(2)} embers**.`)
         .setColor('#00FF00');
     message.reply({ embeds: [embed] });
 }
@@ -131,11 +131,11 @@ async function sellStock(message, args, userId) {
 
     const embed = new EmbedBuilder()
         .setTitle('Sale Successful')
-        .setDescription(`You have sold **${amountToSell}** shares of **${stockSymbol}** for **$${totalSaleValue.toFixed(2)}**.`)
+        .setDescription(`You have sold **${amountToSell}** shares of **${stockSymbol}** for **${totalSaleValue.toFixed(2)} embers**.`)
         .setColor(profit >= 0 ? '#00FF00' : '#FF0000');
 
     if (profit !== 0) {
-        embed.addFields({ name: 'Profit/Loss', value: `${profit >= 0 ? '+' : '-'}$${Math.abs(profit).toFixed(2)}` });
+        embed.addFields({ name: 'Profit/Loss', value: `${profit >= 0 ? '+' : '-'}${Math.abs(profit).toFixed(2)} embers` });
     }
     
     message.reply({ embeds: [embed] });
@@ -143,12 +143,12 @@ async function sellStock(message, args, userId) {
 
 async function listStocks(message) {
     const embed = new EmbedBuilder()
-        .setTitle('Available Stocks')
+        .setTitle('Available Kingdom Assets')
         .setColor('#0099FF');
 
     for (const symbol in stocks) {
         const stock = stocks[symbol];
-        embed.addFields({ name: `${stock.name} (${symbol})`, value: `Price: **$${stock.price.toFixed(2)}**` });
+        embed.addFields({ name: `${stock.name} (${symbol})`, value: `Price: **${stock.price.toFixed(2)} embers**` });
     }
 
     message.reply({ embeds: [embed] });
@@ -173,7 +173,7 @@ async function viewInvestments(message, userId) {
         const profit = currentValue - purchaseValue;
         embed.addFields({
             name: `**${investment.symbol}** - ${investment.shares} shares`,
-            value: `ID: ${investment.id}\nPurchase Price: $${investment.purchasePrice.toFixed(2)}\nCurrent Value: $${currentValue.toFixed(2)}\nProfit/Loss: ${profit >= 0 ? '+' : '-'}$${Math.abs(profit).toFixed(2)}`,
+            value: `ID: ${investment.id}\nPurchase Price: ${investment.purchasePrice.toFixed(2)} embers\nCurrent Value: ${currentValue.toFixed(2)} embers\nProfit/Loss: ${profit >= 0 ? '+' : '-'}${Math.abs(profit).toFixed(2)} embers`,
             inline: true,
         });
     });
@@ -184,13 +184,34 @@ async function viewInvestments(message, userId) {
 async function showHelp(message) {
     const embed = new EmbedBuilder()
         .setTitle('Invest Command Help')
-        .setDescription('Invest in the stock market to grow your wealth!')
+        .setDescription('Invest in kingdom assets to grow your wealth in the dark-fantasy realm!')
         .addFields(
-            { name: '`invest list`', value: 'View available stocks and their current prices.' },
-            { name: '`invest buy <symbol> <amount>`', value: 'Buy a specific amount of shares of a stock.' },
+            { name: '`invest list`', value: 'View available kingdom assets and their current prices.' },
+            { name: '`invest buy <symbol> <amount>`', value: 'Buy a specific amount of shares of a kingdom asset.' },
             { name: '`invest sell <symbol> <amount>`', value: 'Sell a specific number of shares you own.' },
             { name: '`invest view`', value: 'View your current investments.' },
         )
         .setColor('#0099FF');
-    message.reply({ embeds: [embed] });
+
+    const buttons = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('invest_list')
+                .setLabel('List Assets')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('invest_view')
+                .setLabel('View Investments')
+                .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId('invest_buy')
+                .setLabel('Buy Assets')
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId('invest_sell')
+                .setLabel('Sell Assets')
+                .setStyle(ButtonStyle.Danger)
+        );
+
+    message.reply({ embeds: [embed], components: [buttons] });
 }

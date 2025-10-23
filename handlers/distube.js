@@ -5,6 +5,7 @@ const musicIcons = require('../UI/icons/musicicons');
 const { EmbedBuilder } = require('discord.js');
 const path = require('path');
 const data = require('../UI/banners/musicard');
+const ffmpeg = require('ffmpeg-static');
 
 module.exports = async (client) => {
   
@@ -15,8 +16,8 @@ module.exports = async (client) => {
         ...distubeConfig.distubeOptions,
         plugins: [
             new YtDlpPlugin({
-                update: false, 
-                cookies: path.join(__dirname, '../utils/cookies.txt'), 
+                update: false,
+                // Removed cookies to prevent extraction failures
             })
         ],
     });
@@ -131,7 +132,7 @@ module.exports = async (client) => {
                     color: 0xDC92FF,
                     author: {
                         name: 'Now playing',
-                        url: 'https://discord.gg/67gme8db96',
+                        url: 'https://discord.gg/sanctyr',
                         icon_url: musicIcons.playerIcon
                     },
                     description: `- Song name: **${song.name}** \n- Duration: **${song.formattedDuration}**\n- Requested by: ${song.user}`,
@@ -186,7 +187,7 @@ module.exports = async (client) => {
                     .setAuthor({ 
                         name: 'Song added successfully', 
                         iconURL: musicIcons.correctIcon, 
-                        url: 'https://discord.gg/67gme8db96' 
+                        url: 'https://discord.gg/sanctyr' 
                     })
                     .setDescription(`**${song.name}**\n- Duration: **${song.formattedDuration}**\n- Added by: ${song.user}`)
                     .setThumbnail(song.thumbnail)
@@ -224,7 +225,7 @@ module.exports = async (client) => {
                     .setAuthor({ 
                         name: 'Playlist added successfully', 
                         iconURL: musicIcons.correctIcon,
-                        url: 'https://discord.gg/67gme8db96' 
+                        url: 'https://discord.gg/sanctyr' 
                     })
                     .setDescription(`**${playlist.name}**\n- Songs: **${playlist.songs.length}**\n- Added by: ${playlist.user}`)
                     .setThumbnail(playlist.thumbnail)
@@ -405,7 +406,7 @@ module.exports = async (client) => {
     
    
     client.distube.on('debug', (message) => {
-      //  console.log(`[DisTube Debug]: ${message}`);
+        console.log(`[DisTube Debug]: ${message}`);
     });
 
     //console.log('DisTube music player initialized successfully!');

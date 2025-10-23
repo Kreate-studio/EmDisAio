@@ -48,14 +48,14 @@ module.exports = {
             await updateWallet(userId, winnings);
             resultEmbed = new EmbedBuilder()
                 .setTitle('You Won!')
-                .setDescription(`The ball landed on **${winningColor}**. You won **$${winnings}**!`)
+                .setDescription(`The ball landed on **${winningColor}**. You won **${winnings} embers**!`)
                 .setColor('#00FF00');
         } else {
             const loss = amount;
             await updateWallet(userId, -loss);
             resultEmbed = new EmbedBuilder()
                 .setTitle('You Lost!')
-                .setDescription(`The ball landed on **${winningColor}**. You lost **$${loss}**.`)
+                .setDescription(`The ball landed on **${winningColor}**. You lost **${loss} embers**.`)
                 .setColor('#FF0000');
         }
 

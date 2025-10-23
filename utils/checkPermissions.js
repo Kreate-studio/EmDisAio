@@ -19,7 +19,7 @@ module.exports = async function checkPermissions(interaction) {
             .setAuthor({
                 name: 'Permission Denied',
                 iconURL: cmdIcons.rippleIcon,
-                url: "https://discord.gg/67gme8db96"
+                url: "https://discord.gg/sanctyr"
             })
             .setDescription(
                 '- Only the **server owner** or **bot managers** can use this command.\n' +

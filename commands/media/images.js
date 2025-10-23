@@ -119,7 +119,7 @@ module.exports = {
             .setAuthor({ 
                 name: "Alert!", 
                 iconURL: cmdIcons.dotIcon,
-                url: "https://discord.gg/67gme8db96"
+                url: "https://discord.gg/sanctyr"
             })
             .setDescription('- This command can only be used through slash command!\n- Please use `/images`')
             .setTimestamp();

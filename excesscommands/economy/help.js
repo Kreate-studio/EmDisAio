@@ -1,21 +1,26 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const path = require('path');
 
 module.exports = {
     name: 'help',
     description: 'Displays a list of all available economy commands.',
     execute(message) {
+        const imagePath = path.join(__dirname, '../../UI/economyimages/EcoKingdom.png');
+        const attachment = new AttachmentBuilder(imagePath, { name: 'EcoKingdom.png' });
+
         const embed = new EmbedBuilder()
             .setTitle('💰 Economy Command Help')
-            .setDescription('Here is a list of all available commands related to the economy. Use `$economy <command>` to run them.')
+            .setDescription('**🚀 Quick Start:** Use the `$embers` command for an interactive menu to run economy commands instantly!\n\nHere is a summarized list of available economy commands. Use `$economy <command>` to run them.')
             .addFields(
-                { name: '💰 Earning Currency', value: '`$beg`\n`$crime`\n`$daily`\n`$fish`\n`$heist`\n`$hunt`\n`$loot`\n`$rob`\n`$weekly`\n`$work`' },
-                { name: '💸 Managing Finances', value: '`$bank`\n`$deposit`\n`$invest`\n`$loan`\n`$paybills`\n`$transfer`\n`$withdraw`' },
-                { name: '🛍️ Shop & Items', value: '`$buy`\n`$buy-gold`\n`$inventory`\n`$sell`\n`$shop`\n`$use`' },
-                { name: '🎲 Gambling', value: '`$gamble`\n`$roulette`\n`$slots`' },
-                { name: '🏆 Social & Profile', value: '`$leaderboard`\n`$myhome`\n`$profile`\n`$trade`' }
+                { name: '💰 Earning', value: '• `$beg`, `$crime`, `$daily`, `$fish`, `$heist`, `$hunt`, `$loot`, `$rob`, `$weekly`, `$work`' },
+                { name: '💸 Finances', value: '• `$bank`, `$deposit`, `$invest`, `$loan`, `$paybills`, `$transfer`, `$withdraw`' },
+                { name: '🛍️ Shop & Items', value: '• `$buy`, `$buy-gold`, `$inventory`, `$sell`, `$shop`, `$use`' },
+                { name: '🎲 Gambling', value: '• `$gamble`, `$roulette`, `$slots`' },
+                { name: '🏆 Social', value: '• `$leaderboard`, `$myhome`, `$profile`, `$trade`' }
             )
+            .setImage('attachment://EcoKingdom.png')
             .setColor('#E67E22');
 
-        message.reply({ embeds: [embed] });
+        message.reply({ embeds: [embed], files: [attachment] });
     },
 };

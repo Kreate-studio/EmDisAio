@@ -2,33 +2,32 @@ const { EmbedBuilder } = require('discord.js');
 const { getEconomyProfile, updateWallet, updateXP, updateCooldown } = require('../../models/economy');
 
 const jobs = [
-    // ... [rest of the jobs array is unchanged] ...
-    { name: 'Lumberjack', min: 50, max: 100, baseXp: 8 },
-    { name: 'Programmer', min: 150, max: 300, baseXp: 25 },
-    { name: 'Chef', min: 100, max: 200, baseXp: 15 },
-    { name: 'Delivery Person', min: 70, max: 150, baseXp: 11 },
-    { name: 'Engineer', min: 200, max: 400, baseXp: 30 },
-    { name: 'Construction Worker', min: 90, max: 160, baseXp: 13 },
-    { name: 'Janitor', min: 60, max: 120, baseXp: 9 },
-    { name: 'Electrician', min: 120, max: 250, baseXp: 18 },
-    { name: 'Mechanic', min: 110, max: 200, baseXp: 16 },
-    { name: 'Data Analyst', min: 180, max: 350, baseXp: 26 },
-    { name: 'Marketing Manager', min: 200, max: 400, baseXp: 30 },
-    { name: 'Accountant', min: 170, max: 320, baseXp: 24 },
-    { name: 'Teacher', min: 100, max: 220, baseXp: 16 },
-    { name: 'Graphic Designer', min: 120, max: 250, baseXp: 18 },
-    { name: 'Writer', min: 100, max: 200, baseXp: 15 },
-    { name: 'Musician', min: 90, max: 180, baseXp: 14 },
-    { name: 'Photographer', min: 80, max: 170, baseXp: 12 },
-    { name: 'Biologist', min: 200, max: 380, baseXp: 29 },
-    { name: 'AI Researcher', min: 300, max: 500, baseXp: 40 },
-    { name: 'Game Developer', min: 180, max: 350, baseXp: 27 },
-    { name: 'Police Officer', min: 130, max: 250, baseXp: 19 },
-    { name: 'Firefighter', min: 120, max: 240, baseXp: 18 },
-    { name: 'Paramedic', min: 140, max: 260, baseXp: 20 },
-    { name: 'Stock Trader', min: 100, max: 600, baseXp: 35 },
-    { name: 'Crypto Miner', min: 50, max: 700, baseXp: 37 },
-    { name: 'Black Market Courier', min: 200, max: 1000, baseXp: 60 },
+    { name: 'Blacksmith', min: 80, max: 160, baseXp: 12 },
+    { name: 'Alchemist', min: 120, max: 250, baseXp: 18 },
+    { name: 'Knight', min: 150, max: 300, baseXp: 22 },
+    { name: 'Sorcerer', min: 200, max: 400, baseXp: 30 },
+    { name: 'Merchant', min: 100, max: 220, baseXp: 16 },
+    { name: 'Royal Guard', min: 130, max: 260, baseXp: 19 },
+    { name: 'Herbalist', min: 90, max: 180, baseXp: 14 },
+    { name: 'Enchanter', min: 180, max: 350, baseXp: 26 },
+    { name: 'Tavern Keeper', min: 70, max: 150, baseXp: 11 },
+    { name: 'Assassin', min: 250, max: 500, baseXp: 35 },
+    { name: 'Necromancer', min: 300, max: 600, baseXp: 42 },
+    { name: 'Dragon Keeper', min: 350, max: 700, baseXp: 48 },
+    { name: 'Court Jester', min: 60, max: 120, baseXp: 9 },
+    { name: 'Scribe', min: 100, max: 200, baseXp: 15 },
+    { name: 'Bard', min: 110, max: 230, baseXp: 17 },
+    { name: 'Archer', min: 140, max: 280, baseXp: 20 },
+    { name: 'Healer', min: 160, max: 320, baseXp: 24 },
+    { name: 'Rune Carver', min: 190, max: 380, baseXp: 28 },
+    { name: 'Shadow Weaver', min: 220, max: 450, baseXp: 32 },
+    { name: 'Crystal Miner', min: 170, max: 340, baseXp: 25 },
+    { name: 'Beast Tamer', min: 200, max: 400, baseXp: 30 },
+    { name: 'Oracle', min: 280, max: 550, baseXp: 38 },
+    { name: 'Warlock', min: 320, max: 650, baseXp: 45 },
+    { name: 'Treasure Hunter', min: 150, max: 600, baseXp: 36 },
+    { name: 'Dark Merchant', min: 180, max: 800, baseXp: 50 },
+    { name: 'Blood Mage', min: 400, max: 1000, baseXp: 60 },
 ];
 
 module.exports = {
@@ -70,7 +69,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setTitle('💼 Work Complete 💼')
-            .setDescription(`You worked as a **${job.name}** and earned **$${earnings.toLocaleString()}** and **${xpGained} XP**!`)
+            .setDescription(`You worked as a **${job.name}** and earned **${earnings.toLocaleString()} embers** and **${xpGained} XP**!`)
             .setColor('#2ECC71');
 
         let footerText = [];

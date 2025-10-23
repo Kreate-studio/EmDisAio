@@ -11,10 +11,17 @@ module.exports = {
         .setDescription('Displays the command list and bot information'),
 
     async execute(interaction) {
-      
-        await interaction.deferReply();
-        
-        if (interaction.isCommand && interaction.isCommand()) {
+        // Check if it's a slash command or message command
+        const isSlashCommand = interaction.isCommand && interaction.isCommand();
+
+        if (isSlashCommand) {
+            await interaction.deferReply();
+        } else {
+            // For message commands, send typing indicator
+            await interaction.channel.sendTyping();
+        }
+
+        if (isSlashCommand) {
      
             const BOT_ICON = "https://cdn.discordapp.com/emojis/1411743140985180443.png";
             const EMBED_COLOR = "#5865F2"; 
@@ -161,6 +168,11 @@ module.exports = {
                         return line;
                     });
 
+                    let extraDescription = '';
+                    if (category === 'economy' && type === 'prefix') {
+                        extraDescription = '\n💡 **Quick Start:** Use the `embers` command for an interactive menu to run economy commands instantly!\n';
+                    }
+
                     pages.push({
                         title: `${categoryIcon} ${category.charAt(0).toUpperCase() + category.slice(1)} Commands`,
                         description: [
@@ -171,11 +183,12 @@ module.exports = {
                             `\`🔍\` **Master Commands:** ${commands.length}`,
                             `\`🔗\` **Integrated Subcommands:** ${totalSubcommands}`,
                             `\`⌨️\` **Usage Type:** ${type === 'slash' ? '`Slash Commands`' : `\`Prefix: ${config.prefix}\``}`,
-                            ''
+                            '',
+                            extraDescription
                         ].join('\n'),
                         commands: commandLines,
                         author: { name: `${category.toUpperCase()} • COMMAND MODULE` },
-                        icon: categoryIcon 
+                        icon: categoryIcon
                     });
                 }
 
@@ -202,7 +215,7 @@ module.exports = {
                     .setAuthor({
                         name: page.author.name,
                         iconURL: BOT_ICON,
-                        url: "https://discord.gg/67gme8db96"
+                        url: "https://discord.gg/sanctyr"
                     })
                     .setImage(helpBanner)
                     .setFooter({ text: `${FOOTER_TEXT} • Page ${currentPage + 1}/${currentSet.length}` })
@@ -378,14 +391,14 @@ module.exports = {
                 .setAuthor({
                     name: "Command Error",
                     iconURL: cmdIcons.dotIcon,
-                    url: "https://discord.gg/67gme8db96"
+                    url: "https://discord.gg/sanctyr"
                 })
                 .setDescription('> ⚠️ This command can only be used as a slash command!\n> Please use `/help` instead.')
                 .setFooter({ text: 'Emberlyn D’Sanctus • Error' })
                 .setTimestamp();
 
-          
-            await interaction.editReply({ embeds: [embed], ephemeral: true });
+
+            await interaction.reply({ embeds: [embed], ephemeral: true });
         }
     }
 };

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const lang = require('./loadLanguage');
 const client = require('../main');
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags, StringSelectMenuBuilder, AttachmentBuilder } = require('discord.js');
 const VerificationConfig = require('../models/gateVerification/verificationConfig');
 const verificationCodes = new Map();
 const SuggestionVote = require('../models/suggestions/SuggestionVote');
@@ -14,6 +14,7 @@ const DisabledCommand = require('../models/commands/DisabledCommands');
 const PartnerConfig = require('../models/partnership/partnerConfig');
 const EventConfig = require('../models/events/eventConfig');
 const AiChat = require('../models/aichat/aiModel');
+const embersMessages = new Map();
 
 module.exports = {
     name: 'interactionCreate',
@@ -109,6 +110,327 @@ module.exports = {
                     await interaction.reply({ content: '⚠️ Could not register your vote. Please try again later.', flags: [MessageFlags.Ephemeral] });
                 }
             }
+            if (customId === 'invest_list') {
+                await interaction.deferUpdate();
+                const { stocks, updateStockPrices } = require('../data/stocks');
+                updateStockPrices();
+                const embed = new EmbedBuilder()
+                    .setTitle('Available Kingdom Assets')
+                    .setColor('#0099FF');
+
+                for (const symbol in stocks) {
+                    const stock = stocks[symbol];
+                    embed.addFields({ name: `${stock.name} (${symbol})`, value: `Price: **${stock.price.toFixed(2)} embers**` });
+                }
+
+                await interaction.editReply({ embeds: [embed] });
+            }
+            if (customId === 'invest_view') {
+                await interaction.deferUpdate();
+                const { getEconomyProfile } = require('../models/economy');
+                const { stocks } = require('../data/stocks');
+                const userId = interaction.user.id;
+                const profile = await getEconomyProfile(userId);
+                const investments = profile.investments;
+
+                if (!investments || investments.length === 0) {
+                    return interaction.editReply('You do not have any active investments.');
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Your Investments')
+                    .setColor('#0099FF');
+
+                investments.forEach(investment => {
+                    const currentPrice = stocks[investment.symbol].price;
+                    const currentValue = currentPrice * investment.shares;
+                    const purchaseValue = investment.purchasePrice * investment.shares;
+                    const profit = currentValue - purchaseValue;
+                    embed.addFields({
+                        name: `**${investment.symbol}** - ${investment.shares} shares`,
+                        value: `ID: ${investment.id}\nPurchase Price: ${investment.purchasePrice.toFixed(2)} embers\nCurrent Value: ${currentValue.toFixed(2)} embers\nProfit/Loss: ${profit >= 0 ? '+' : '-'}${Math.abs(profit).toFixed(2)} embers`,
+                        inline: true,
+                    });
+                });
+
+                await interaction.editReply({ embeds: [embed] });
+            }
+            if (customId === 'invest_buy') {
+                await interaction.deferUpdate();
+                const { stocks, updateStockPrices } = require('../data/stocks');
+                updateStockPrices();
+                const embed = new EmbedBuilder()
+                    .setTitle('Buy Kingdom Assets')
+                    .setDescription('Select an asset to buy and enter the amount.')
+                    .setColor('#00FF00');
+
+                const options = Object.keys(stocks).map(symbol => ({
+                    label: `${stocks[symbol].name} (${symbol})`,
+                    description: `Price: ${stocks[symbol].price.toFixed(2)} embers`,
+                    value: `buy_${symbol}`,
+                }));
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('invest_buy_select')
+                    .setPlaceholder('Choose an asset to buy')
+                    .addOptions(options);
+
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                await interaction.editReply({ embeds: [embed], components: [row] });
+            }
+            if (customId === 'invest_sell') {
+                await interaction.deferUpdate();
+                const { getEconomyProfile } = require('../models/economy');
+                const { stocks } = require('../data/stocks');
+                const userId = interaction.user.id;
+                const profile = await getEconomyProfile(userId);
+                const investments = profile.investments;
+
+                if (!investments || investments.length === 0) {
+                    return interaction.editReply('You do not have any active investments to sell.');
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Sell Kingdom Assets')
+                    .setDescription('Select an investment to sell and enter the amount.')
+                    .setColor('#FF0000');
+
+                const options = investments.map(investment => ({
+                    label: `${stocks[investment.symbol].name} (${investment.symbol}) - ${investment.shares} shares`,
+                    description: `Current Value: ${(stocks[investment.symbol].price * investment.shares).toFixed(2)} embers`,
+                    value: `sell_${investment.id}`,
+                }));
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId('invest_sell_select')
+                    .setPlaceholder('Choose an investment to sell')
+                    .addOptions(options);
+
+                const row = new ActionRowBuilder().addComponents(selectMenu);
+
+                await interaction.editReply({ embeds: [embed], components: [row] });
+            }
+            if (customId === 'bank_deposit') {
+                const modal = new ModalBuilder()
+                    .setCustomId('bank_deposit_modal')
+                    .setTitle('Deposit');
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel('Amount to deposit (or "all")')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('Enter amount or "all"');
+
+                const row = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row);
+
+                await interaction.showModal(modal);
+            }
+            if (customId === 'bank_withdraw') {
+                const modal = new ModalBuilder()
+                    .setCustomId('bank_withdraw_modal')
+                    .setTitle('Withdraw');
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel('Amount to withdraw')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('Enter amount');
+
+                const row = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row);
+
+                await interaction.showModal(modal);
+            }
+            if (customId === 'bank_transfer') {
+                const modal = new ModalBuilder()
+                    .setCustomId('bank_transfer_modal')
+                    .setTitle('Transfer');
+
+                const recipientInput = new TextInputBuilder()
+                    .setCustomId('recipient')
+                    .setLabel('Recipient (mention or ID)')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('@user or user ID');
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel('Amount to transfer')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('Enter amount');
+
+                const row1 = new ActionRowBuilder().addComponents(recipientInput);
+                const row2 = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row1, row2);
+
+                await interaction.showModal(modal);
+            }
+            if (customId === 'bank_buy_gold') {
+                const modal = new ModalBuilder()
+                    .setCustomId('bank_buy_gold_modal')
+                    .setTitle('Buy Gold');
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel('Amount of gold to buy (200 embers per gold)')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('Enter amount');
+
+                const row = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row);
+
+                await interaction.showModal(modal);
+            }
+            if (customId === 'bank_update') {
+                await interaction.deferUpdate();
+                const userId = interaction.user.id;
+                const profile = await require('../models/economy').getEconomyProfile(userId);
+
+                const wallet = Number(profile.wallet ?? 1);
+                const bank = Number(profile.bank ?? 0);
+                const gold = Number(profile.gold ?? 0);
+                const bankLimit = profile.bankLimit || 50000;
+
+                const attachment = new AttachmentBuilder('./UI/economyimages/EcoKingdom.png');
+                const embed = new EmbedBuilder()
+                    .setTitle('Bank Balance')
+                    .setDescription(`**Wallet:** ${wallet} embers\n**Bank:** ${bank}/${bankLimit} embers\n**Gold:** ${gold}`)
+                    .setColor('#FF00FF')
+                    .setImage('attachment://EcoKingdom.png')
+                    .setFooter({ text: `Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
+                    .setTimestamp();
+
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('bank_deposit')
+                        .setLabel('Deposit')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('bank_withdraw')
+                        .setLabel('Withdraw')
+                        .setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder()
+                        .setCustomId('bank_transfer')
+                        .setLabel('Transfer')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId('bank_buy_gold')
+                        .setLabel('Buy Gold')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('bank_update')
+                        .setLabel('Update')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+                await interaction.editReply({ embeds: [embed], components: [row], files: [attachment] });
+            }
+            if (customId === 'ad_ecom_give_money') {
+                const modal = new ModalBuilder()
+                    .setCustomId('ad_ecom_give_money_modal')
+                    .setTitle('Give Money');
+
+                const userInput = new TextInputBuilder()
+                    .setCustomId('user')
+                    .setLabel('User (mention or ID)')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('@user or user ID');
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel('Amount to give')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('Enter amount');
+
+                const row1 = new ActionRowBuilder().addComponents(userInput);
+                const row2 = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row1, row2);
+
+                await interaction.showModal(modal);
+            }
+            if (customId === 'ad_ecom_take_money') {
+                const modal = new ModalBuilder()
+                    .setCustomId('ad_ecom_take_money_modal')
+                    .setTitle('Take Money');
+
+                const userInput = new TextInputBuilder()
+                    .setCustomId('user')
+                    .setLabel('User (mention or ID)')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('@user or user ID');
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel('Amount to take')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('Enter amount');
+
+                const row1 = new ActionRowBuilder().addComponents(userInput);
+                const row2 = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row1, row2);
+
+                await interaction.showModal(modal);
+            }
+            if (customId === 'ad_ecom_give_gold') {
+                const modal = new ModalBuilder()
+                    .setCustomId('ad_ecom_give_gold_modal')
+                    .setTitle('Give Gold');
+
+                const userInput = new TextInputBuilder()
+                    .setCustomId('user')
+                    .setLabel('User (mention or ID)')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('@user or user ID');
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel('Amount to give')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('Enter amount');
+
+                const row1 = new ActionRowBuilder().addComponents(userInput);
+                const row2 = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row1, row2);
+
+                await interaction.showModal(modal);
+            }
+            if (customId === 'ad_ecom_take_gold') {
+                const modal = new ModalBuilder()
+                    .setCustomId('ad_ecom_take_gold_modal')
+                    .setTitle('Take Gold');
+
+                const userInput = new TextInputBuilder()
+                    .setCustomId('user')
+                    .setLabel('User (mention or ID)')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('@user or user ID');
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel('Amount to take')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('Enter amount');
+
+                const row1 = new ActionRowBuilder().addComponents(userInput);
+                const row2 = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row1, row2);
+
+                await interaction.showModal(modal);
+            }
         }
         // Handle String Select Menus
         else if (interaction.isStringSelectMenu()) {
@@ -116,6 +438,184 @@ module.exports = {
                 return;
             }
 
+
+
+            if (interaction.customId === 'embers_select') {
+                const selectedValue = interaction.values[0];
+                const commandName = selectedValue.replace('embers_', '');
+                const userId = interaction.user.id;
+
+                // Delete the previous embers command response if it exists
+                if (embersMessages.has(userId)) {
+                    try {
+                        await embersMessages.get(userId).delete();
+                    } catch (error) {
+                        console.error('Error deleting previous embers message:', error);
+                    }
+                    embersMessages.delete(userId);
+                }
+
+                // Show modal based on command
+                if (commandName === 'rob') {
+                    const modal = new ModalBuilder()
+                        .setCustomId('embers_rob_modal')
+                        .setTitle('Rob Command');
+
+                    const targetInput = new TextInputBuilder()
+                        .setCustomId('target')
+                        .setLabel('Target User (mention or ID)')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setPlaceholder('@user or user ID');
+
+                    const row = new ActionRowBuilder().addComponents(targetInput);
+                    modal.addComponents(row);
+
+                    await interaction.showModal(modal);
+                } else if (commandName === 'slots') {
+                    const modal = new ModalBuilder()
+                        .setCustomId('embers_slots_modal')
+                        .setTitle('Slots Command');
+
+                    const betInput = new TextInputBuilder()
+                        .setCustomId('bet')
+                        .setLabel('Bet Amount')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setPlaceholder('Enter bet amount');
+
+                    const row = new ActionRowBuilder().addComponents(betInput);
+                    modal.addComponents(row);
+
+                    await interaction.showModal(modal);
+                } else if (commandName === 'gamble') {
+                    const modal = new ModalBuilder()
+                        .setCustomId('embers_gamble_modal')
+                        .setTitle('Gamble Command');
+
+                    const amountInput = new TextInputBuilder()
+                        .setCustomId('amount')
+                        .setLabel('Amount to Gamble (or "all")')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setPlaceholder('Enter amount or "all"');
+
+                    const row = new ActionRowBuilder().addComponents(amountInput);
+                    modal.addComponents(row);
+
+                    await interaction.showModal(modal);
+                } else if (commandName === 'roulette') {
+                    const modal = new ModalBuilder()
+                        .setCustomId('embers_roulette_modal')
+                        .setTitle('Roulette Command');
+
+                    const betInput = new TextInputBuilder()
+                        .setCustomId('bet')
+                        .setLabel('Bet Amount')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setPlaceholder('Enter bet amount');
+
+                    const colorInput = new TextInputBuilder()
+                        .setCustomId('color')
+                        .setLabel('Color (red or black)')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setPlaceholder('red or black');
+
+                    const row1 = new ActionRowBuilder().addComponents(betInput);
+                    const row2 = new ActionRowBuilder().addComponents(colorInput);
+                    modal.addComponents(row1, row2);
+
+                    await interaction.showModal(modal);
+                } else {
+                    // For other commands, use the old method
+                    await interaction.deferUpdate();
+                    const mockMessage = {
+                        author: interaction.user,
+                        channel: interaction.channel,
+                        guild: interaction.guild,
+                        reply: async (content) => {
+                            let responseMessage;
+                            if (typeof content === 'string') {
+                                responseMessage = await interaction.followUp({ content });
+                            } else {
+                                responseMessage = await interaction.followUp(content);
+                            }
+                            // Store the new message for potential deletion on next selection
+                            embersMessages.set(userId, responseMessage);
+                            return responseMessage;
+                        },
+                        channel: {
+                            sendTyping: async () => {} // Mock sendTyping
+                        }
+                    };
+
+                    try {
+                        const command = require(`../excesscommands/economy/${commandName}.js`);
+                        await command.execute(mockMessage, []);
+                    } catch (error) {
+                        console.error(`Error executing command ${commandName}:`, error);
+                        const errorMessage = await interaction.followUp({ content: `An error occurred while running the ${commandName} command.`, ephemeral: true });
+                        embersMessages.set(userId, errorMessage);
+                    }
+                }
+            }
+            if (interaction.customId === 'invest_buy_select') {
+                const selectedValue = interaction.values[0];
+                const symbol = selectedValue.replace('buy_', '');
+                const { stocks } = require('../data/stocks');
+
+                if (!stocks[symbol]) {
+                    return interaction.reply({ content: 'Invalid asset selected.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const modal = new ModalBuilder()
+                    .setCustomId(`invest_buy_modal_${symbol}`)
+                    .setTitle(`Buy ${stocks[symbol].name} (${symbol})`);
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel('Number of shares to buy')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('Enter amount (e.g., 10)');
+
+                const row = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row);
+
+                await interaction.showModal(modal);
+            }
+
+            if (interaction.customId === 'invest_sell_select') {
+                const selectedValue = interaction.values[0];
+                const investmentId = selectedValue.replace('sell_', '');
+                const { getEconomyProfile } = require('../models/economy');
+                const { stocks } = require('../data/stocks');
+                const userId = interaction.user.id;
+                const profile = await getEconomyProfile(userId);
+                const investment = profile.investments.find(inv => inv.id === investmentId);
+
+                if (!investment) {
+                    return interaction.reply({ content: 'Invalid investment selected.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const modal = new ModalBuilder()
+                    .setCustomId(`invest_sell_modal_${investmentId}`)
+                    .setTitle(`Sell ${stocks[investment.symbol].name} (${investment.symbol})`);
+
+                const amountInput = new TextInputBuilder()
+                    .setCustomId('amount')
+                    .setLabel(`Number of shares to sell (Max: ${investment.shares})`)
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder(`Enter amount (1-${investment.shares})`);
+
+                const row = new ActionRowBuilder().addComponents(amountInput);
+                modal.addComponents(row);
+
+                await interaction.showModal(modal);
+            }
 
         }
         // Handle Modal Submissions
@@ -259,6 +759,542 @@ module.exports = {
                         content: '❌ There was an error saving your changes. Please try again later.'
                     });
                 }
+            }
+
+            if (interaction.customId.startsWith('invest_buy_modal_')) {
+                const symbol = interaction.customId.replace('invest_buy_modal_', '');
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const amount = parseInt(amountStr);
+
+                if (isNaN(amount) || amount <= 0) {
+                    return interaction.reply({ content: 'Please enter a valid number of shares to buy.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const { getEconomyProfile, addInvestment, updateWallet } = require('../models/economy');
+                const { stocks, updateStockPrices } = require('../data/stocks');
+                updateStockPrices();
+
+                if (!stocks[symbol]) {
+                    return interaction.reply({ content: 'Invalid asset selected.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const userId = interaction.user.id;
+                const profile = await getEconomyProfile(userId);
+                const stockPrice = stocks[symbol].price;
+                const totalCost = stockPrice * amount;
+
+                if (profile.wallet < totalCost) {
+                    return interaction.reply({ content: 'You do not have enough money in your wallet to make this purchase.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const crypto = require('crypto');
+                const investmentId = crypto.randomBytes(16).toString('hex');
+                const investment = {
+                    id: investmentId,
+                    symbol: symbol,
+                    shares: amount,
+                    purchasePrice: stockPrice,
+                    purchaseDate: new Date(),
+                };
+
+                await addInvestment(userId, investment);
+                await updateWallet(userId, -totalCost);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Purchase Successful')
+                    .setDescription(`You have purchased **${amount}** shares of **${stocks[symbol].name}** (${symbol}) for a total of **${totalCost.toFixed(2)} embers**.`)
+                    .setColor('#00FF00');
+
+                await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+            }
+
+            if (interaction.customId.startsWith('invest_sell_modal_')) {
+                const investmentId = interaction.customId.replace('invest_sell_modal_', '');
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const amountToSell = parseInt(amountStr);
+
+                if (isNaN(amountToSell) || amountToSell <= 0) {
+                    return interaction.reply({ content: 'Please enter a valid number of shares to sell.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const { getEconomyProfile, updateEconomyProfile, updateWallet } = require('../models/economy');
+                const { stocks } = require('../data/stocks');
+                const userId = interaction.user.id;
+                const profile = await getEconomyProfile(userId);
+                const investment = profile.investments.find(inv => inv.id === investmentId);
+
+                if (!investment) {
+                    return interaction.reply({ content: 'Invalid investment selected.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const totalSharesOwned = investment.shares;
+
+                if (amountToSell > totalSharesOwned) {
+                    return interaction.reply({ content: `You only own ${totalSharesOwned} shares of ${stocks[investment.symbol].name}. You cannot sell ${amountToSell}.`, flags: [MessageFlags.Ephemeral] });
+                }
+
+                const currentPrice = stocks[investment.symbol].price;
+                const totalSaleValue = amountToSell * currentPrice;
+                const totalCostBasis = amountToSell * investment.purchasePrice;
+
+                const remainingInvestments = [...profile.investments];
+                const investmentIndex = remainingInvestments.findIndex(inv => inv.id === investmentId);
+                if (amountToSell === totalSharesOwned) {
+                    remainingInvestments.splice(investmentIndex, 1);
+                } else {
+                    remainingInvestments[investmentIndex].shares -= amountToSell;
+                }
+
+                await updateWallet(userId, totalSaleValue);
+                await updateEconomyProfile(userId, { investments: remainingInvestments });
+
+                const profit = totalSaleValue - totalCostBasis;
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Sale Successful')
+                    .setDescription(`You have sold **${amountToSell}** shares of **${stocks[investment.symbol].name}** (${investment.symbol}) for **${totalSaleValue.toFixed(2)} embers**.`)
+                    .setColor(profit >= 0 ? '#00FF00' : '#FF0000');
+
+                if (profit !== 0) {
+                    embed.addFields({ name: 'Profit/Loss', value: `${profit >= 0 ? '+' : '-'}${Math.abs(profit).toFixed(2)} embers` });
+                }
+
+                await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+            }
+
+            if (interaction.customId === 'bank_deposit_modal') {
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const userId = interaction.user.id;
+                const profile = await require('../models/economy').getEconomyProfile(userId);
+
+                let amount;
+                if (amountStr.toLowerCase() === 'all') {
+                    amount = profile.wallet;
+                } else {
+                    amount = parseInt(amountStr);
+                }
+
+                if (isNaN(amount) || amount <= 0) {
+                    return interaction.reply({ content: 'Please enter a valid amount to deposit.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                if (profile.wallet < amount) {
+                    return interaction.reply({ content: "You don't have that much money in your wallet.", flags: [MessageFlags.Ephemeral] });
+                }
+
+                const bankLimit = profile.bankLimit || 50000;
+                const availableSpace = bankLimit - profile.bank;
+
+                if (availableSpace <= 0) {
+                    return interaction.reply({ content: 'Your bank is full! Consider upgrading your vault.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const depositAmount = Math.min(amount, availableSpace);
+
+                await require('../models/economy').updateEconomyProfile(userId, {
+                    wallet: profile.wallet - depositAmount,
+                    bank: profile.bank + depositAmount
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Deposit Successful')
+                    .setDescription(`You have deposited **${depositAmount.toLocaleString()} embers** into your bank.`)
+                    .setColor('#2ECC71');
+
+                if (amount > depositAmount) {
+                    embed.setFooter({ text: `Your bank was too full to deposit the full amount.` });
+                }
+
+                await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+            }
+
+            if (interaction.customId === 'bank_withdraw_modal') {
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const amount = parseInt(amountStr);
+                const userId = interaction.user.id;
+                const profile = await require('../models/economy').getEconomyProfile(userId);
+
+                if (isNaN(amount) || amount <= 0) {
+                    return interaction.reply({ content: 'Please provide a valid amount to withdraw.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                if (profile.bank < amount) {
+                    return interaction.reply({ content: 'You don\'t have enough money in your bank to make this withdrawal.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                await require('../models/economy').updateEconomyProfile(userId, {
+                    wallet: profile.wallet + amount,
+                    bank: profile.bank - amount
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Withdrawal Successful')
+                    .setDescription(`You have withdrawn **${amount} embers** from your bank.`)
+                    .setColor('#00FF00');
+
+                await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+            }
+
+            if (interaction.customId === 'bank_transfer_modal') {
+                const recipientStr = interaction.fields.getTextInputValue('recipient');
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const amount = parseInt(amountStr);
+                const userId = interaction.user.id;
+                const profile = await require('../models/economy').getEconomyProfile(userId);
+
+                if (isNaN(amount) || amount <= 0) {
+                    return interaction.reply({ content: 'Please provide a valid amount to transfer.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                if (profile.wallet < amount) {
+                    return interaction.reply({ content: 'You don\'t have enough money in your wallet to transfer.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                let recipientId;
+                const mentionMatch = recipientStr.match(/^<@!?(\d+)>$/);
+                if (mentionMatch) {
+                    recipientId = mentionMatch[1];
+                } else if (/^\d+$/.test(recipientStr)) {
+                    recipientId = recipientStr;
+                } else {
+                    return interaction.reply({ content: 'Please provide a valid user mention or ID.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                if (recipientId === userId) {
+                    return interaction.reply({ content: 'You cannot transfer money to yourself.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const recipientProfile = await require('../models/economy').getEconomyProfile(recipientId);
+                if (!recipientProfile) {
+                    return interaction.reply({ content: 'Recipient not found.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                await require('../models/economy').updateWallet(userId, -amount);
+                await require('../models/economy').updateWallet(recipientId, amount);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Transfer Successful')
+                    .setDescription(`You have transferred **${amount} embers** to <@${recipientId}>.`)
+                    .setColor('#FFFF00');
+
+                await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+            }
+
+            if (interaction.customId === 'bank_buy_gold_modal') {
+                await interaction.deferReply({ ephemeral: true });
+
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const amount = parseInt(amountStr);
+                const userId = interaction.user.id;
+                const profile = await require('../models/economy').getEconomyProfile(userId);
+
+                if (isNaN(amount) || amount <= 0) {
+                    return interaction.editReply({ content: 'Please enter a valid amount of gold to buy.' });
+                }
+
+                const cost = amount * 200;
+
+                if (profile.wallet < cost) {
+                    return interaction.editReply({ content: 'You do not have enough embers to buy this much gold.' });
+                }
+
+                await require('../models/economy').updateWallet(userId, -cost);
+                await require('../models/economy').updateGold(userId, amount);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('Gold Purchase Successful')
+                    .setDescription(`You have successfully bought **${amount}** gold coins for **${cost} embers**.`)
+                    .setColor('#FFD700');
+
+                await interaction.editReply({ embeds: [embed] });
+            }
+
+            if (interaction.customId === 'ad_ecom_give_money_modal') {
+                const userStr = interaction.fields.getTextInputValue('user');
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const amount = parseInt(amountStr);
+
+                if (isNaN(amount) || amount <= 0) {
+                    return interaction.reply({ content: 'Please provide a valid amount to give.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                let targetId;
+                const mentionMatch = userStr.match(/^<@!?(\d+)>$/);
+                if (mentionMatch) {
+                    targetId = mentionMatch[1];
+                } else if (/^\d+$/.test(userStr)) {
+                    targetId = userStr;
+                } else {
+                    return interaction.reply({ content: 'Please provide a valid user mention or ID.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                try {
+                    await require('../models/economy').updateWallet(targetId, amount);
+                    const embed = new EmbedBuilder()
+                        .setTitle('💰 Money Added 💰')
+                        .setDescription(`Successfully gave **${amount.toLocaleString()} embers** to **<@${targetId}>**.`)
+                        .setColor('#00FF00')
+                        .setTimestamp();
+                    await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+                } catch (error) {
+                    console.error('Error giving money:', error);
+                    const embed = new EmbedBuilder()
+                        .setColor('#FF0000')
+                        .setDescription('An error occurred while giving money. Please try again later.');
+                    await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+                }
+            }
+
+            if (interaction.customId === 'ad_ecom_take_money_modal') {
+                const userStr = interaction.fields.getTextInputValue('user');
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const amount = parseInt(amountStr);
+
+                if (isNaN(amount) || amount <= 0) {
+                    return interaction.reply({ content: 'Please provide a valid amount to take.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                let targetId;
+                const mentionMatch = userStr.match(/^<@!?(\d+)>$/);
+                if (mentionMatch) {
+                    targetId = mentionMatch[1];
+                } else if (/^\d+$/.test(userStr)) {
+                    targetId = userStr;
+                } else {
+                    return interaction.reply({ content: 'Please provide a valid user mention or ID.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const userData = await require('../models/economy').getEconomyProfile(targetId);
+                const amountToTake = Math.min(amount, userData.wallet);
+
+                try {
+                    await require('../models/economy').updateWallet(targetId, -amountToTake);
+                    const embed = new EmbedBuilder()
+                        .setTitle('💰 Money Taken 💰')
+                        .setDescription(`Successfully took **${amountToTake.toLocaleString()} embers** from **<@${targetId}>**.`)
+                        .setColor('#FF0000')
+                        .setTimestamp();
+                    await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+                } catch (error) {
+                    console.error('Error taking money:', error);
+                    const embed = new EmbedBuilder()
+                        .setColor('#FF0000')
+                        .setDescription('An error occurred while taking money. Please try again later.');
+                    await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+                }
+            }
+
+            if (interaction.customId === 'ad_ecom_give_gold_modal') {
+                const userStr = interaction.fields.getTextInputValue('user');
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const amount = parseInt(amountStr);
+
+                if (isNaN(amount) || amount <= 0) {
+                    return interaction.reply({ content: 'Please provide a valid amount to give.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                let targetId;
+                const mentionMatch = userStr.match(/^<@!?(\d+)>$/);
+                if (mentionMatch) {
+                    targetId = mentionMatch[1];
+                } else if (/^\d+$/.test(userStr)) {
+                    targetId = userStr;
+                } else {
+                    return interaction.reply({ content: 'Please provide a valid user mention or ID.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                try {
+                    await require('../models/economy').updateGold(targetId, amount);
+                    const embed = new EmbedBuilder()
+                        .setTitle('💰 Gold Added 💰')
+                        .setDescription(`Successfully gave **${amount.toLocaleString()} gold** to **<@${targetId}>**.`)
+                        .setColor('#FFD700')
+                        .setTimestamp();
+                    await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+                } catch (error) {
+                    console.error('Error giving gold:', error);
+                    const embed = new EmbedBuilder()
+                        .setColor('#FF0000')
+                        .setDescription('An error occurred while giving gold. Please try again later.');
+                    await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+                }
+            }
+
+            if (interaction.customId === 'ad_ecom_take_gold_modal') {
+                const userStr = interaction.fields.getTextInputValue('user');
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const amount = parseInt(amountStr);
+
+                if (isNaN(amount) || amount <= 0) {
+                    return interaction.reply({ content: 'Please provide a valid amount to take.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                let targetId;
+                const mentionMatch = userStr.match(/^<@!?(\d+)>$/);
+                if (mentionMatch) {
+                    targetId = mentionMatch[1];
+                } else if (/^\d+$/.test(userStr)) {
+                    targetId = userStr;
+                } else {
+                    return interaction.reply({ content: 'Please provide a valid user mention or ID.', flags: [MessageFlags.Ephemeral] });
+                }
+
+                const userData = await require('../models/economy').getEconomyProfile(targetId);
+                const amountToTake = Math.min(amount, userData.gold);
+
+                try {
+                    await require('../models/economy').updateGold(targetId, -amountToTake);
+                    const embed = new EmbedBuilder()
+                        .setTitle('💰 Gold Taken 💰')
+                        .setDescription(`Successfully took **${amountToTake.toLocaleString()} gold** from **<@${targetId}>**.`)
+                        .setColor('#FF0000')
+                        .setTimestamp();
+                    await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+                } catch (error) {
+                    console.error('Error taking gold:', error);
+                    const embed = new EmbedBuilder()
+                        .setColor('#FF0000')
+                        .setDescription('An error occurred while taking gold. Please try again later.');
+                    await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
+                }
+            }
+
+            if (interaction.customId === 'embers_rob_modal') {
+                await interaction.deferReply({ ephemeral: true });
+                const targetStr = interaction.fields.getTextInputValue('target');
+                const userId = interaction.user.id;
+
+                let targetId;
+                const mentionMatch = targetStr.match(/^<@!?(\d+)>$/);
+                if (mentionMatch) {
+                    targetId = mentionMatch[1];
+                } else if (/^\d+$/.test(targetStr)) {
+                    targetId = targetStr;
+                } else {
+                    return interaction.editReply({ content: 'Please provide a valid user mention or ID.' });
+                }
+
+                const target = await interaction.guild.members.fetch(targetId).catch(() => null);
+                if (!target) {
+                    return interaction.editReply({ content: 'User not found in this server.' });
+                }
+
+                const mockMessage = {
+                    author: interaction.user,
+                    channel: interaction.channel,
+                    guild: interaction.guild,
+                    reply: async (content) => {
+                        let responseMessage;
+                        if (typeof content === 'string') {
+                            responseMessage = await interaction.editReply({ content });
+                        } else {
+                            responseMessage = await interaction.editReply(content);
+                        }
+                        embersMessages.set(userId, responseMessage);
+                        return responseMessage;
+                    },
+                    channel: { sendTyping: async () => {} }
+                };
+
+                const args = [targetStr];
+                const command = require('../excesscommands/economy/rob.js');
+                await command.execute(mockMessage, args);
+            }
+
+            if (interaction.customId === 'embers_slots_modal') {
+                await interaction.deferReply({ ephemeral: true });
+                const betStr = interaction.fields.getTextInputValue('bet');
+                const bet = parseInt(betStr);
+                const userId = interaction.user.id;
+
+                if (isNaN(bet) || bet <= 0) {
+                    return interaction.editReply({ content: 'Please provide a valid bet amount.' });
+                }
+
+                const mockMessage = {
+                    author: interaction.user,
+                    channel: interaction.channel,
+                    guild: interaction.guild,
+                    reply: async (content) => {
+                        let responseMessage;
+                        if (typeof content === 'string') {
+                            responseMessage = await interaction.editReply({ content });
+                        } else {
+                            responseMessage = await interaction.editReply(content);
+                        }
+                        embersMessages.set(userId, responseMessage);
+                        return responseMessage;
+                    },
+                    channel: { sendTyping: async () => {} }
+                };
+
+                const args = [betStr];
+                const command = require('../excesscommands/economy/slots.js');
+                await command.execute(mockMessage, args);
+            }
+
+            if (interaction.customId === 'embers_gamble_modal') {
+                await interaction.deferReply({ ephemeral: true });
+                const amountStr = interaction.fields.getTextInputValue('amount');
+                const userId = interaction.user.id;
+
+                const mockMessage = {
+                    author: interaction.user,
+                    channel: interaction.channel,
+                    guild: interaction.guild,
+                    reply: async (content) => {
+                        let responseMessage;
+                        if (typeof content === 'string') {
+                            responseMessage = await interaction.editReply({ content });
+                        } else {
+                            responseMessage = await interaction.editReply(content);
+                        }
+                        embersMessages.set(userId, responseMessage);
+                        return responseMessage;
+                    },
+                    channel: { sendTyping: async () => {} }
+                };
+
+                const args = [amountStr];
+                const command = require('../excesscommands/economy/gamble.js');
+                await command.execute(mockMessage, args);
+            }
+
+            if (interaction.customId === 'embers_roulette_modal') {
+                await interaction.deferReply({ ephemeral: true });
+                const betStr = interaction.fields.getTextInputValue('bet');
+                const color = interaction.fields.getTextInputValue('color').toLowerCase();
+                const bet = parseInt(betStr);
+                const userId = interaction.user.id;
+
+                if (isNaN(bet) || bet <= 0) {
+                    return interaction.editReply({ content: 'Please provide a valid bet amount.' });
+                }
+
+                if (color !== 'red' && color !== 'black') {
+                    return interaction.editReply({ content: 'Please choose either "red" or "black".' });
+                }
+
+                const mockMessage = {
+                    author: interaction.user,
+                    channel: interaction.channel,
+                    guild: interaction.guild,
+                    reply: async (content) => {
+                        let responseMessage;
+                        if (typeof content === 'string') {
+                            responseMessage = await interaction.editReply({ content });
+                        } else {
+                            responseMessage = await interaction.editReply(content);
+                        }
+                        embersMessages.set(userId, responseMessage);
+                        return responseMessage;
+                    },
+                    channel: { sendTyping: async () => {} }
+                };
+
+                const args = [betStr, color];
+                const command = require('../excesscommands/economy/roulette.js');
+                await command.execute(mockMessage, args);
             }
         }
         // Handle Slash Commands

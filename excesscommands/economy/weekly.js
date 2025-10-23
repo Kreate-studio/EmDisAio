@@ -6,6 +6,7 @@ module.exports = {
     name: 'weekly',
     description: 'Claim your weekly reward.',
     async execute(message) {
+        await message.channel.sendTyping();
         const userId = message.author.id;
         const commandName = 'weekly';
         const cooldown = 7 * 24 * 60 * 60 * 1000;
@@ -36,7 +37,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setTitle('Weekly Reward')
-            .setDescription(`You have received $${reward}!`)
+            .setDescription(`You have received ${reward} embers!`)
             .setColor('#00FF00');
 
         message.reply({ embeds: [embed] });

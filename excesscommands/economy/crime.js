@@ -6,15 +6,15 @@ const CRIME_COOLDOWN = 10 * 60 * 1000; // 10 minutes
 
 const scenarios = {
     success: [
-        { message: "You pickpocketed a wealthy tourist and got away with {amount}! You feel a bit more experienced.", min: 50, max: 200, xp: [10, 25] },
-        { message: "You successfully hacked into a crypto wallet, transferring {amount} to your own.", min: 100, max: 500, xp: [20, 50] },
-        { message: "A quick smash-and-grab at a high-end electronics store netted you {amount}.", min: 80, max: 350, xp: [15, 40] },
-        { message: "You ran a successful street scam and walked away with {amount}.", min: 40, max: 150, xp: [8, 20] },
+        { message: "You infiltrated the dragon's lair and stole {amount} from its hoard! Your cunning grows stronger.", min: 50, max: 200, xp: [10, 25] },
+        { message: "You assassinated a corrupt noble and claimed {amount} from their vault.", min: 100, max: 500, xp: [20, 50] },
+        { message: "You looted a cursed tomb, securing {amount} in ancient gold.", min: 80, max: 350, xp: [15, 40] },
+        { message: "You enchanted a rival's artifact and sold it for {amount}.", min: 40, max: 150, xp: [8, 20] },
     ],
     failure: [
-        { message: "A bystander saw you and you had to bribe them with {amount} to stay quiet.", min: 30, max: 150 },
-        { message: "You were outsmarted by your target and lost {amount} in the process.", min: 50, max: 200 },
-        { message: "The local gang wasn't happy with you operating on their turf. They took {amount} from you.", min: 75, max: 250 },
+        { message: "A witch cursed you, forcing you to pay {amount} to lift the hex.", min: 30, max: 150 },
+        { message: "Undead guardians rose against you, costing you {amount} in the fray.", min: 50, max: 200 },
+        { message: "A rival sorcerer outmaneuvered you, taking {amount} as tribute.", min: 75, max: 250 },
     ],
 };
 
@@ -26,6 +26,7 @@ module.exports = {
     description: 'Commit a crime for a chance at a big payout, but be careful!',
     aliases: ['rob'],
     async execute(message, args) {
+        await message.channel.sendTyping();
         const userId = message.author.id;
         const profile = await getEconomyProfile(userId);
 
@@ -59,7 +60,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setTitle('Crime Successful!')
-                .setDescription(scenario.message.replace('{amount}', `**$${earnings.toLocaleString()}**`))
+                .setDescription(scenario.message.replace('{amount}', `**${earnings.toLocaleString()} embers**`))
                 .setColor('#2ECC71')
                 .setFooter({ text: `+${finalXPGained} XP ${xpBoost ? ' (Boost Active!)' : ''}` });
             message.reply({ embeds: [embed] });
@@ -67,17 +68,25 @@ module.exports = {
         } else {
             // Failure
             const scenario = scenarios.failure[Math.floor(Math.random() * scenarios.failure.length)];
-            const fine = Math.floor((Math.random() * (scenario.max - scenario.min) + scenario.min) * riskFactor);
-            const amountToPay = Math.min(fine, profile.wallet);
+            let fine = Math.floor((Math.random() * (scenario.max - scenario.min) + scenario.min) * riskFactor);
+            const jailed = Math.random() < 0.2; // 20% chance to get jailed
 
+            if (jailed) {
+                fine *= 2; // Double the fine for jail
+                await updateCooldown(userId, 'crime', Date.now() - CRIME_COOLDOWN + 30 * 60 * 1000); // 30 minute jail time
+            }
+
+            const amountToPay = Math.min(fine, profile.wallet);
             await updateWallet(userId, -amountToPay);
 
             const embed = new EmbedBuilder()
-                .setTitle('Crime Failed!')
-                .setDescription(scenario.message.replace('{amount}', `**$${amountToPay.toLocaleString()}**`))
+                .setTitle(jailed ? 'Crime Failed and Jailed!' : 'Crime Failed!')
+                .setDescription(jailed ?
+                    `${scenario.message.replace('{amount}', `**${(fine / 2).toLocaleString()} embers**`)}\n\nYou got caught and sent to jail! You lost an additional **${(fine / 2).toLocaleString()} embers** (total: **${amountToPay.toLocaleString()} embers**) and must wait **30 minutes** before your next crime.` :
+                    scenario.message.replace('{amount}', `**${amountToPay.toLocaleString()} embers**`))
                 .setColor('#E74C3C');
 
-            if (fine > profile.wallet && profile.wallet > 0) {
+            if (!jailed && fine > profile.wallet && profile.wallet > 0) {
                 embed.setFooter({ text: "You couldn't afford the full amount, so you lost all your cash." });
             }
 

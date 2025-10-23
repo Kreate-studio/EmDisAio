@@ -48,7 +48,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setTitle('Slot Machine')
-            .setDescription(`You bet **$${bet}**. Good luck!\n\n${reels.map(row => row.map(s => s.emoji).join(' ')).join('\n')}`)
+            .setDescription(`You bet **${bet} embers**. Good luck!\n\n${reels.map(row => row.map(s => s.emoji).join(' ')).join('\n')}`)
             .setColor('#F1C40F');
 
         let winnings = 0;
@@ -82,7 +82,7 @@ module.exports = {
 
         if (winnings > 0) {
             await updateWallet(userId, winnings);
-            embed.addFields({ name: 'Congratulations!', value: `You won **$${winnings}** on ${winningLines} line(s)!` });
+            embed.addFields({ name: 'Congratulations!', value: `You won **${winnings} embers** on ${winningLines} line(s)!` });
             embed.setColor('#2ECC71');
         } else {
             embed.addFields({ name: 'Better Luck Next Time!', value: 'You didn\'t win anything.' });

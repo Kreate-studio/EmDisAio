@@ -293,7 +293,7 @@ module.exports = {
         .setAuthor({ 
             name: lang.alertTitle, 
             iconURL: cmdIcons.dotIcon,
-            url: "https://discord.gg/67gme8db96"
+            url: "https://discord.gg/sanctyr"
         })
         .setDescription(lang.commandUsageMessage)
         .setTimestamp();

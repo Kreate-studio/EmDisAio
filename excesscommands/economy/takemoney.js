@@ -28,6 +28,6 @@ module.exports = {
         // Get the updated profile to show the new balance
         const updatedUserData = await getEconomyProfile(user.id);
 
-        message.reply({ content: `Successfully took ${amountToTake} coins from ${user.username}. Their new balance is ${updatedUserData.wallet} coins.` });
+        message.reply({ content: `Successfully took ${amountToTake} embers from ${user.username}. Their new balance is ${updatedUserData.wallet} embers.` });
     },
 };

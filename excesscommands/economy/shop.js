@@ -3,6 +3,26 @@ const { shopItems } = require('../../data/shopItems');
 
 const ITEMS_PER_PAGE = 4;
 
+// Category image mapping
+const categoryImages = {
+    "Kingdom Properties": "properties.png",
+    "Mounts & Conveyances": "mounts.png",
+    "Potions & Elixirs": "potion.png",
+    "Treasure Chests": "chest.png",
+    "Kingdom Upgrades": "upgrades.png",
+    "Pets": "marketplace.png"
+};
+
+// Category descriptions
+const categoryDescriptions = {
+    "Kingdom Properties": "🏰 Establish your dominion with grand estates and mystical dwellings",
+    "Mounts & Conveyances": "🐎 Command the skies and lands with legendary beasts and enchanted vessels",
+    "Potions & Elixirs": "🧪 Harness the arcane arts with potent brews and mystical elixirs",
+    "Treasure Chests": "💎 Unlock the secrets of ancient treasures and forgotten riches",
+    "Kingdom Upgrades": "⚔️ Strengthen your realm with powerful enhancements and fortifications",
+    "Pets": "🐾 Bond with mystical creatures and loyal companions"
+};
+
 // Helper to create the embed for a given page
 const generateEmbed = (category, page, totalPages) => {
     const items = shopItems[category];
@@ -11,19 +31,28 @@ const generateEmbed = (category, page, totalPages) => {
     const currentItems = items.slice(start, end);
 
     const capitalizedCategory = category.charAt(0).toUpperCase() + category.slice(1);
+    const imagePath = categoryImages[category] || "EcoKingdom.png";
+    const description = categoryDescriptions[category] || "Discover wondrous items for your kingdom";
 
     const embed = new EmbedBuilder()
-        .setTitle(`🛍️ Shop - ${capitalizedCategory}`)
+        .setTitle(`🏰 Kingdom Market - ${capitalizedCategory}`)
+        .setDescription(description)
         .setColor('#2ECC71')
-        .setFooter({ text: `Page ${page + 1} of ${totalPages}` });
+        .setImage(`attachment://${imagePath}`)
+        .setFooter({ text: `Page ${page + 1} of ${totalPages} • Use /buy <item_id> to purchase` });
 
     if (currentItems.length === 0) {
-        embed.setDescription('There are no items in this category right now.');
+        embed.addFields({
+            name: '📭 Empty Category',
+            value: 'There are no items in this category right now. Check back later for new arrivals!'
+        });
     } else {
         currentItems.forEach(item => {
+            const monthlyText = item.monthlyUpkeep ? `\n💰 Monthly Upkeep: ${item.monthlyUpkeep.toLocaleString()} embers` : '';
             embed.addFields({
-                name: `${item.name} - $${item.price.toLocaleString()}`,
-                value: `ID: \`${item.id}\`\n${item.description}`
+                name: `${item.name} - 💎 ${item.price.toLocaleString()} embers`,
+                value: `🆔 ID: \`${item.id}\`\n📝 ${item.description}${monthlyText}`,
+                inline: false
             });
         });
     }
@@ -71,8 +100,13 @@ module.exports = {
 
         const initialEmbed = generateEmbed(currentCategory, currentPage, totalPages);
         const initialComponents = generateComponents(currentCategory, currentPage, totalPages);
+        const imagePath = categoryImages[currentCategory] || "EcoKingdom.png";
 
-        const shopMessage = await message.reply({ embeds: [initialEmbed], components: initialComponents });
+        const shopMessage = await message.reply({
+            embeds: [initialEmbed],
+            components: initialComponents,
+            files: [{ attachment: `UI/economyimages/${imagePath}`, name: imagePath }]
+        });
 
         const collector = shopMessage.createMessageComponentCollector({
             componentType: ComponentType.StringSelect | ComponentType.Button,
@@ -98,7 +132,17 @@ module.exports = {
 
             const newEmbed = generateEmbed(currentCategory, currentPage, totalPages);
             const newComponents = generateComponents(currentCategory, currentPage, totalPages);
-            await interaction.update({ embeds: [newEmbed], components: newComponents });
+            const newImagePath = categoryImages[currentCategory] || "EcoKingdom.png";
+
+            // Acknowledge the interaction first
+            await interaction.deferUpdate();
+
+            // Then edit the message with new content and files
+            await shopMessage.edit({
+                embeds: [newEmbed],
+                components: newComponents,
+                files: [{ attachment: `UI/economyimages/${newImagePath}`, name: newImagePath }]
+            });
         });
 
         collector.on('end', () => {

@@ -50,13 +50,13 @@ module.exports = {
         let embedColor;
 
         if (win) {
-            const winnings = amount * 2; 
+            const winnings = amount * 2;
             await updateWallet(userId, winnings);
-            resultMessage = `You gambled **$${amount.toLocaleString()}** and won **$${winnings.toLocaleString()}**! Congratulations!`;
+            resultMessage = `You gambled **${amount.toLocaleString()} embers** and won **${winnings.toLocaleString()} embers**! Congratulations!`;
             embedColor = '#2ECC71'; // Green
         } else {
             await updateWallet(userId, -amount);
-            resultMessage = `You gambled **$${amount.toLocaleString()}** and lost it all. Better luck next time.`;
+            resultMessage = `You gambled **${amount.toLocaleString()} embers** and lost it all. Better luck next time.`;
             embedColor = '#E74C3C'; // Red
         }
         

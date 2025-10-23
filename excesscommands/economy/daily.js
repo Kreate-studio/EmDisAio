@@ -6,6 +6,7 @@ module.exports = {
     name: 'daily',
     description: 'Claim your daily reward.',
     async execute(message) {
+        await message.channel.sendTyping();
         const userId = message.author.id;
         const commandName = 'daily';
         const cooldown = 24 * 60 * 60 * 1000;
@@ -44,7 +45,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setTitle('Daily Reward')
-            .setDescription(`You have received $${reward}! Current streak: ${newStreak}`)
+            .setDescription(`You have received ${reward} embers! Current streak: ${newStreak}`)
             .setColor('#00FF00')
             .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
             .setTimestamp();

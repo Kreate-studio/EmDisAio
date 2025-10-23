@@ -37,7 +37,9 @@ module.exports = {
     name: 'profile',
     description: "Displays a user's complete economic profile and wealth rank.",
     aliases: ['moneyprofile', 'wealth'],
+    calculateNetWorth,
     async execute(message, args) {
+        await message.channel.sendTyping();
         const targetUser = (message.mentions && message.mentions.users.first()) || message.author;
         const userId = targetUser.id;
 
@@ -45,7 +47,7 @@ module.exports = {
         const profile = allProfiles.find(p => p.userId === userId);
 
         if (!profile) {
-            return message.reply("This user doesn\'t have an economy profile yet.");
+            return message.reply("This user doesn't have an economy profile yet.");
         }
 
         const rankedUsers = allProfiles
@@ -59,7 +61,7 @@ module.exports = {
         const wallet = profile.wallet || 0;
         const bank = profile.bank || 0;
         const gold = profile.gold || 0;
-        const bankLimit = profile.bankLimit || 10000; // <<< Get bank limit, with a fallback
+        const bankLimit = profile.bankLimit || 10000;
         const loanAmount = (typeof profile.loan === 'object' && typeof profile.loan.amount === 'number') ? profile.loan.amount : (typeof profile.loan === 'number' ? profile.loan : 0);
         const inventoryValue = (profile.inventory || []).reduce((total, item) => total + (item.purchasePrice || itemPrices[item.id] || 0), 0);
         const investmentsValue = (profile.investments || []).reduce((total, inv) => {
@@ -70,49 +72,86 @@ module.exports = {
         }, 0);
         const xp = profile.xp || 0;
 
-        const embed = new EmbedBuilder()
-            .setTitle(`**${targetUser.username}\'s Economic Profile**`)
-            .setColor('#FFD700')
-            .setThumbnail(targetUser.displayAvatarURL())
-            .addFields(
-                { name: '👑 __**Wealth Rank**__', value: `**#${userRank}** out of ${totalUsers}` },
-                { name: '⭐ __**Experience**__', value: `**XP:** ${xp.toLocaleString()}` },
-                { name: '💰 __**Liquid Assets**__', value: `**Wallet:** $${wallet.toLocaleString()}\n**Bank:** $${bank.toLocaleString()} / $${bankLimit.toLocaleString()}\n**Gold:** ${gold.toLocaleString()}` },
-                { name: '📊 __**Investments**__', value: `**Total Value:** $${investmentsValue.toLocaleString()}` },
-                { name: '📦 __**Inventory**__', value: `**Total Value:** $${inventoryValue.toLocaleString()}` },
-                { name: '📉 __**Liabilities**__', value: `**Loan:** $${loanAmount.toLocaleString()}` },
-                { name: '💼 __**Net Worth**__', value: `**Approx. Total:** **$${netWorth.toLocaleString()}**` }
-            )
-            .setFooter({ text: `Requested by ${message.author.username}` })
-            .setTimestamp();
-
-        // --- Active Effects Display ---
         const now = Date.now();
         const activeEffects = profile.activeEffects?.filter(e => e.expiresAt > now) || [];
 
+        // Create a beautiful text-based embed
+        const embed = new EmbedBuilder()
+            .setTitle(`💰 ${targetUser.username}'s Economic Profile`)
+            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
+            .setColor('#FFD700')
+            .addFields(
+                {
+                    name: '🏆 Rank & Level',
+                    value: `**Rank:** #${userRank} of ${totalUsers}\n**XP:** ${xp.toLocaleString()}`,
+                    inline: true
+                },
+                {
+                    name: '💵 Net Worth',
+                    value: `**${netWorth.toLocaleString()} embers**`,
+                    inline: true
+                },
+                {
+                    name: '💰 Assets',
+                    value: `**Wallet:** ${wallet.toLocaleString()} embers\n**Bank:** ${bank.toLocaleString()}/${bankLimit.toLocaleString()} embers\n**Gold:** ${gold.toLocaleString()} coins`,
+                    inline: false
+                }
+            )
+            .setFooter({
+                text: `Requested by ${message.author.username}`,
+                iconURL: message.author.displayAvatarURL({ dynamic: true })
+            })
+            .setTimestamp();
+
+        // Add liabilities if any
+        if (loanAmount > 0) {
+            embed.addFields({
+                name: '💸 Liabilities',
+                value: `**Loan:** ${loanAmount.toLocaleString()} embers`,
+                inline: true
+            });
+        }
+
+        // Add investments value if any
+        if (investmentsValue > 0) {
+            embed.addFields({
+                name: '📈 Investments Value',
+                value: `**${investmentsValue.toLocaleString()} embers**`,
+                inline: true
+            });
+        }
+
+        // Add active effects if any
         if (activeEffects.length > 0) {
             const effectsList = activeEffects.map(effect => {
-                const remaining = effect.expiresAt - now;
-                const minutes = Math.ceil(remaining / (60 * 1000));
-                return `• **${effect.name}**: ${minutes} minute(s) remaining`;
+                const remainingTime = Math.max(0, effect.expiresAt - now);
+                const hours = Math.floor(remainingTime / (1000 * 60 * 60));
+                const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+                return `${effect.name} (${hours}h ${minutes}m)`;
             }).join('\n');
-            embed.addFields({ name: '**Active Statuses**', value: effectsList });
+
+            embed.addFields({
+                name: '✨ Active Effects',
+                value: effectsList,
+                inline: false
+            });
         }
 
+        // Add investment details if any
         if (profile.investments && profile.investments.length > 0) {
-            const investmentList = profile.investments.slice(0, 5).map(inv => {
-                if (!inv || !inv.symbol || typeof inv.shares !== 'number') return '• *Invalid investment data*';
+            const investmentDetails = profile.investments.map(inv => {
                 const stockInfo = stocks[inv.symbol];
                 const currentPrice = stockInfo ? stockInfo.price : inv.purchasePrice;
-                const value = inv.shares * (typeof currentPrice === 'number' ? currentPrice : 0);
-                return `• **${inv.symbol.toUpperCase()}**: ${inv.shares.toLocaleString()} shares - **$${value.toLocaleString()}**`;
+                const totalValue = inv.shares * currentPrice;
+                const profit = totalValue - (inv.purchasePrice * inv.shares);
+                return `${inv.symbol}: ${inv.shares} shares (${totalValue.toFixed(2)} embers) ${profit >= 0 ? '📈' : '📉'}`;
             }).join('\n');
-            embed.addFields({ name: '**Investment Portfolio**', value: investmentList });
-        }
 
-        if (profile.inventory && profile.inventory.length > 0) {
-            const inventoryList = profile.inventory.slice(0, 5).map(item => `• ${item.name}`).join('\n');
-            embed.addFields({ name: '**Inventory Highlights**', value: inventoryList });
+            embed.addFields({
+                name: '📈 Investment Details',
+                value: investmentDetails.length > 1024 ? investmentDetails.substring(0, 1021) + '...' : investmentDetails,
+                inline: false
+            });
         }
 
         await message.reply({ embeds: [embed] });

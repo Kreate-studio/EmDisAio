@@ -6,10 +6,30 @@ module.exports = {
     description: 'Attempt to rob another user.',
     async execute(message, args) {
         const userId = message.author.id;
-        const target = message.mentions.users.first();
-        
-        if (!target) {
-            return message.reply('Please mention a user to rob.');
+        let target;
+
+        if (args && args.length > 0) {
+            const targetStr = args[0];
+            let targetId;
+            const mentionMatch = targetStr.match(/^<@!?(\d+)>$/);
+            if (mentionMatch) {
+                targetId = mentionMatch[1];
+            } else if (/^\d+$/.test(targetStr)) {
+                targetId = targetStr;
+            } else {
+                return message.reply('Please provide a valid user mention or ID.');
+            }
+
+            const member = await message.guild.members.fetch(targetId).catch(() => null);
+            if (!member) {
+                return message.reply('User not found in this server.');
+            }
+            target = member.user;
+        } else {
+            target = message.mentions.users.first();
+            if (!target) {
+                return message.reply('Please mention a user to rob.');
+            }
         }
 
         if (target.id === userId) {
@@ -64,7 +84,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setTitle('✅ Robbery Successful!')
-                .setDescription(`You successfully robbed **$${stolen.toLocaleString()}** from ${target.username}!`)
+                .setDescription(`You successfully robbed **${stolen.toLocaleString()} embers** from ${target.username}!`)
                 .setColor('#2ECC71');
             message.reply({ embeds: [embed] });
         } else {
@@ -73,7 +93,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setTitle('❌ Robbery Failed')
-                .setDescription(`You failed to rob ${target.username} and lost **$${penalty.toLocaleString()}** as a penalty.`)
+                .setDescription(`You failed to rob ${target.username} and lost **${penalty.toLocaleString()} embers** as a penalty.`)
                 .setColor('#E74C3C');
             message.reply({ embeds: [embed] });
         }

@@ -127,7 +127,7 @@ async function runHeist(heistMessage, heist) {
 
         resultEmbed = new EmbedBuilder()
             .setTitle('Heist Successful!')
-            .setDescription(`You and your crew successfully stole **$${totalStolen}**! Each member gets **$${share}**.`)
+            .setDescription(`You and your crew successfully stole **${totalStolen} embers**! Each member gets **${share} embers**.`)
             .setColor('#00FF00');
     } else {
         let penalty = 0;
@@ -140,7 +140,7 @@ async function runHeist(heistMessage, heist) {
 
         resultEmbed = new EmbedBuilder()
             .setTitle('Heist Failed!')
-            .setDescription(`The heist failed! Your crew lost a total of **$${penalty}**.`)
+            .setDescription(`The heist failed! Your crew lost a total of **${penalty} embers**.`)
             .setColor('#FF0000');
     }
 

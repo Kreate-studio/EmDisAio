@@ -34,7 +34,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setTitle('Begging Successful')
-            .setDescription(`You begged and received $${earnings}!`)
+            .setDescription(`You begged and received ${earnings} embers!`)
             .setColor('#00FF00')
             .setFooter({ text: `Requested by ${message.author.tag}`, iconURL: message.author.displayAvatarURL() })
             .setTimestamp();

@@ -42,7 +42,7 @@ module.exports = {
             // Send a success message
             const embed = new EmbedBuilder()
                 .setTitle('💰 Money Added 💰')
-                .setDescription(`Successfully gave **$${amount.toLocaleString()}** to **${targetUser.tag}**.`)
+                .setDescription(`Successfully gave **${amount.toLocaleString()} embers** to **${targetUser.tag}**.`)
                 .setColor('#00FF00')
                 .setTimestamp();
 

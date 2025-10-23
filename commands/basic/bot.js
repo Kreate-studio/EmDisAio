@@ -1,28 +1,9 @@
-/*
-
-☆.。.:*・°☆.。.:*・°☆.。.:*・°☆.。.:*・°☆
-                                                 
-  _________ ___ ___ ._______   _________    
- /   _____//   |   \|   \   \ /   /  _  \   
- \_____  \/    ~    \   |\   Y   /  /_\  \  
- /        \    Y    /   | \     /    |    \ 
-/_______  /\___|_  /|___|  \___/\____|__  / 
-        \/       \/                     \/  
-                    
-DISCORD :  https://discord.gg/67gme8db96                   
-YouTube : https://www.youtube.com/@K                         
-
-Command Verified : ✓  
-Website        : ssrr.tech  
-Test Passed    : ✓
-
-☆.。.:*・°☆.。.:*・°☆.。.:*・°☆.。.:*・°☆
-*/
+/* EMBERLYN */
 
 
 const cmdIcons = require('../../UI/icons/commandicons');
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const lang = require('../../events/loadLanguage');
 
 module.exports = {
@@ -65,8 +46,10 @@ module.exports = {
     }
     else if (subcommand === 'support') {
         const supportServerLink = lang.supportServerLink;
-       
+
         const youtubeLink = lang.youtubeLink;
+
+        const attachment = new AttachmentBuilder('./UI/banners/Sanctyr.gif', { name: 'Sanctyr.gif' });
 
         const embed = new EmbedBuilder()
             .setColor('#b300ff')
@@ -78,15 +61,15 @@ module.exports = {
             .setDescription(`
                 ➡️ **${lang.supportDescriptionTitle}:**
                 - ${lang.discord} - ${supportServerLink}
-                
+
                 ➡️ **${lang.followUsOn}:**
-               
+
                 - ${lang.youtube} - ${youtubeLink}
             `)
-            .setImage(lang.supportImageURL)
+            .setImage('attachment://Sanctyr.gif')
             .setTimestamp();
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed], files: [attachment] });
     }
     else if (subcommand === 'invite') {
       const clientId = interaction.client.user.id;
@@ -100,7 +83,7 @@ module.exports = {
         .setAuthor({ 
           name: lang.inviteTitle, 
           iconURL: cmdIcons.rippleIcon,
-          url: "https://discord.gg/67gme8db96" 
+          url: "https://discord.gg/sanctyr" 
         })
         .setDescription(lang.inviteDescription.replace('{inviteURL}', inviteURL))
         .setTimestamp();
@@ -113,7 +96,7 @@ module.exports = {
         .setAuthor({ 
             name: "Alert!", 
             iconURL: cmdIcons.dotIcon,
-            url: "https://discord.gg/67gme8db96"
+            url: "https://discord.gg/sanctyr"
         })
         .setDescription('- This command can only be used through slash command!\n- Please use `/bot`')
         .setTimestamp();
@@ -123,23 +106,4 @@ module.exports = {
   },
 };
 
-/*
-
-☆.。.:*・°☆.。.:*・°☆.。.:*・°☆.。.:*・°☆
-                                                 
-  _________ ___ ___ ._______   _________    
- /   _____//   |   \|   \   \ /   /  _  \   
- \_____  \/    ~    \   |\   Y   /  /_\  \  
- /        \    Y    /   | \     /    |    \ 
-/_______  /\___|_  /|___|  \___/\____|__  / 
-        \/       \/                     \/  
-                    
-DISCORD :  https://discord.gg/67gme8db96                   
-YouTube : https://www.youtube.com/@K                         
-
-Command Verified : ✓  
-Website        : ssrr.tech  
-Test Passed    : ✓
-
-☆.。.:*・°☆.。.:*・°☆.。.:*・°☆.。.:*・°☆
-*/
+/* EMBERLYN */

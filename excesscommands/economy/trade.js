@@ -45,7 +45,7 @@ module.exports = {
 
         const tradeOfferEmbed = new EmbedBuilder()
             .setTitle('🤝 Player Trade Offer')
-            .setDescription(`${initiator.username} is offering to sell you a **${itemToTrade.name}** for **$${price.toLocaleString()}**. Do you accept?`)
+            .setDescription(`${initiator.username} is offering to sell you a **${itemToTrade.name}** for **${price.toLocaleString()} embers**. Do you accept?`)
             .setColor('#3498DB');
 
         const confirmationMsg = await message.channel.send({ content: `${targetUser}`, embeds: [tradeOfferEmbed], components: [row] });
@@ -81,7 +81,7 @@ module.exports = {
 
                 const successEmbed = new EmbedBuilder()
                     .setTitle('✅ Trade Successful!')
-                    .setDescription(`**${targetUser.username}** has purchased **${tradedItem.name}** from **${initiator.username}** for **$${price.toLocaleString()}**. `)
+                    .setDescription(`**${targetUser.username}** has purchased **${tradedItem.name}** from **${initiator.username}** for **${price.toLocaleString()} embers**. `)
                     .setColor('#2ECC71');
 
                 await interaction.update({ embeds: [successEmbed], components: [] });

@@ -72,7 +72,7 @@ module.exports = (client) => {
           .setAuthor({ 
             name: "AFK Notification", 
             iconURL: ticketIcons.correctIcon ,
-            url: "https://discord.gg/67gme8db96"
+            url: "https://discord.gg/sanctyr"
             })
           .setDescription(`<@${userId}> is currently AFK.\n**Reason:** ${afk.reason}`)
           .setColor(0x00bfff)
@@ -104,7 +104,7 @@ module.exports = (client) => {
         .setAuthor({ 
         name: "AFK Notification", 
         iconURL: ticketIcons.correctIcon ,
-        url: "https://discord.gg/67gme8db96"
+        url: "https://discord.gg/sanctyr"
         })
         .setDescription(`Welcome back, <@${message.author.id}>! Your AFK status has been removed.`)
         .setColor(0x00ff7f)
@@ -116,7 +116,7 @@ module.exports = (client) => {
         .setAuthor({ 
         name: "AFK Notification", 
         iconURL: ticketIcons.correctIcon ,
-        url: "https://discord.gg/67gme8db96"
+        url: "https://discord.gg/sanctyr"
         })
         .setDescription('You are active again, so your AFK status has been removed.')
         .setColor(0x00ff7f)

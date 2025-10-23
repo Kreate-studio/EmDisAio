@@ -30,7 +30,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setTitle('Withdrawal Successful')
-            .setDescription(`You have withdrawn **$${amount}** from your bank.`)
+            .setDescription(`You have withdrawn **${amount} embers** from your bank.`)
             .setColor('#00FF00');
 
         message.reply({ embeds: [embed] });

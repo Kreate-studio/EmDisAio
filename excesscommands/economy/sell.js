@@ -54,9 +54,9 @@ module.exports = {
         // --- Confirmation Message ---
         const embed = new EmbedBuilder()
             .setTitle('✅ Sale Successful')
-            .setDescription(`You have sold **${itemsRemovedCount}x ${itemsBeingSold[0].name}** for **$${totalSalePrice.toLocaleString()}**.`)
+            .setDescription(`You have sold **${itemsRemovedCount}x ${itemsBeingSold[0].name}** for **${totalSalePrice.toLocaleString()} embers**.`)
             .setColor('#2ECC71')
-            .setFooter({ text: `Your wallet balance is now $${(profile.wallet + totalSalePrice).toLocaleString()}` });
+            .setFooter({ text: `Your wallet balance is now ${(profile.wallet + totalSalePrice).toLocaleString()} embers` });
 
         await message.reply({ embeds: [embed] });
     },

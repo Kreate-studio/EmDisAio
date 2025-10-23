@@ -43,7 +43,7 @@ module.exports = {
 
                 if (reward.type === 'cash') {
                     icon = '💰';
-                    rewardName = `$${reward.reward.amount.toLocaleString()}`;
+                    rewardName = `${reward.reward.amount.toLocaleString()} embers`;
                 } else if (reward.type === 'item') {
                     icon = '🎁';
                     const itemInfo = allItemsById[reward.reward.id];

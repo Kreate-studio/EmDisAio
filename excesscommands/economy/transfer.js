@@ -35,7 +35,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
             .setTitle('Transfer Successful')
-            .setDescription(`You have successfully transferred **$${amount}** to ${targetUser.username}.`)
+            .setDescription(`You have successfully transferred **${amount} embers** to ${targetUser.username}.`)
             .setColor('#00FF00');
 
         message.reply({ embeds: [embed] });

@@ -380,18 +380,24 @@ module.exports = {
                       timeout: 60000,
                     });
                   } catch (playError) {
-                    if (playError.errorCode === 'VOICE_CONNECT_FAILED') {
+                    console.error('Play error:', playError);
+                    if (playError.errorCode === 'VOICE_CONNECT_FAILED' || playError.message.includes('VOICE_CONNECT_FAILED')) {
                       console.log('Voice connect failed, attempting to rejoin...');
-                      await new Promise(resolve => setTimeout(resolve, 2000)); 
-                      await distube.voices.join(channel);
-                      await new Promise(resolve => setTimeout(resolve, 2000)); 
-                      await distube.play(channel, selectedVideo.url, {
-                        member: interaction.member,
-                        textChannel: interaction.channel,
-                        timeout: 60000,
-                      });
+                      try {
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        await distube.voices.join(channel);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        await distube.play(channel, selectedVideo.url, {
+                          member: interaction.member,
+                          textChannel: interaction.channel,
+                          timeout: 60000,
+                        });
+                      } catch (rejoinError) {
+                        console.error('Rejoin failed:', rejoinError);
+                        throw rejoinError;
+                      }
                     } else {
-                      throw playError; 
+                      throw playError;
                     }
                   }
                   
