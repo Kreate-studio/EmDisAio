@@ -46,7 +46,7 @@ async function getSummary(conversation) {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'HTTP-Referer': process.env.OPENROUTER_REFERER || 'https://github.com/dls/Kiaren-2.0',
+                'HTTP-Referer': process.env.OPENROUTER_REFERER || 'https://github.com/dls/emb-2.0',
                 'X-Title': process.env.OPENROUTER_TITLE || 'Kiaren Discord Bot',
             },
             body: JSON.stringify(payload),
@@ -89,6 +89,8 @@ async function getOpenRouterResponse(history, triggeringMessage, mentionedUsersI
         const userRoles = triggeringMessage.member.roles.cache.map(role => role.name).join(', ');
 
         const systemPrompt = `${bio}
+
+Always address the user by their name or nickname, ${triggeringMessage.member.displayName}, at the beginning of your responses to personalize the interaction.
 
 **Crucial Interaction Rules:**
 1.  **Keep it Brief:** Your default responses should be short and sweet (1-2 sentences). Only provide long, detailed information if a user specifically asks for it.
